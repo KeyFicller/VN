@@ -39,6 +39,96 @@ void render() {
     gluNurbsCurve(nurbs, 6, knotVector, 3, &controlPoints[0][0], 3, GL_MAP1_VERTEX_3);
 }
 
+void test()
+{
+    float ctrlpoints[4][4][3] = {
+        {{0100.0,270.0,0.0},//p00
+        {105.0,180.0,0.0},//p01
+        {110.0,160.0,0.0},//p02
+        {155.0,100.0,0.0}},//p03
+        {{180.0,200.0,0.0},//p10
+        {190.0,130.0,0.0},//p11
+        {200.0,110.0,0.0},//p12
+        {240.0,70.0,0.0}},//p13
+        {{310.0,200.0,0.0},//p20
+        {320.0,130.0,0.0},//p21
+        {330.0,110.0,0.0},//p22
+        {370.0,70.0,0.0}},//p23
+        {{420.0,270.0,0.0},//p30
+        {430.0,180.0,0.0},//p31
+        {440.0,160.0,0.0},//p32
+        {490.0,120.0,1.0}}//p33
+
+    };
+
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++)
+            for (int k = 0; k < 3; k++)
+                ctrlpoints[i][j][k] /= 200.f;
+
+    glPushMatrix();
+    //绘制控制点与控制线
+    glScaled(0.2, 0.2, 0.2);
+
+    glPointSize(4.0f);
+    glColor3f(0.0, 0.0, 1.0);
+    glColor3f(0, 0, 1);
+    glBegin(GL_POINTS);
+    for (int i = 0; i < 4; i++)
+    {
+        for (int j = 0; j < 4; j++)
+            glVertex3fv(ctrlpoints[i][j]);
+
+    }
+    glEnd();
+    //绘制控制线
+    glLineWidth(1.5f);
+    glColor3f(0.0, 1.0, 1.0);
+    for (int i = 0; i < 4; i++)
+    {
+        glBegin(GL_LINE_STRIP);
+        for (int j = 0; j < 4; j++)
+            glVertex3fv(ctrlpoints[i][j]);
+        glEnd();
+
+        glBegin(GL_LINE_STRIP);
+        for (int j = 0; j < 4; j++)
+            glVertex3fv(ctrlpoints[j][i]);
+        glEnd();
+    }
+    //绘制B样条控制曲面
+    GLfloat knots[8] = { 0.0,0.0,0.0,0.0,1.0,1.0,1.0,1.0 }; //B样条控制向量
+    glLineWidth(1.0f);
+    glColor3f(0.0, 0.0, 0.0);
+
+    gluNurbsProperty(nurbs, GLU_SAMPLING_TOLERANCE, 25.0); //设置属性
+    gluNurbsProperty(nurbs, GLU_DISPLAY_MODE, GLU_OUTLINE_POLYGON);
+    gluBeginSurface(nurbs);//开始绘制
+    gluNurbsSurface(nurbs,
+        8, knots,
+        8, knots,
+        4 * 3,
+        3,
+        &ctrlpoints[0][0][0],
+        4, 4,
+        GL_MAP2_VERTEX_3);
+
+    gluEndSurface(nurbs); //结束绘制
+
+    for (int j = 0; j <= 8; j++)
+    {
+        glBegin(GL_LINE_STRIP);
+        for (int i = 0; i <= 30; i++)
+            glEvalCoord2f((GLfloat)i / 30.0, (GLfloat)j / 8.0);
+        glEnd();
+        glBegin(GL_LINE_STRIP);
+        for (int i = 0; i <= 30; i++)
+            glEvalCoord2f((GLfloat)j / 8.0, (GLfloat)i / 30.0);
+        glEnd();
+    }
+    glPopMatrix();
+}
+
 int main()
 {
     GLFWwindow* window;
@@ -103,6 +193,8 @@ int main()
     // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
     glBindVertexArray(0); 
 
+    glClearColor(0.6, 0.2, 0.2, 0.8);
+
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
@@ -110,10 +202,11 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT);
 
         VN::nurb_surface_shader::instance().bind();
-        glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
-//glDrawArrays(GL_TRIANGLES, 0, 6);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-        // glBindVertexArray(0); // no need to unbind it every time 
+//        glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
+////glDrawArrays(GL_TRIANGLES, 0, 6);
+//        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+//        // glBindVertexArray(0); // no need to unbind it every time
+        test();
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
