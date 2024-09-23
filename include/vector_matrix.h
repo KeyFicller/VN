@@ -322,4 +322,98 @@ namespace VN
     using Mat2f = Mat2_t<float>;
     using Mat3f = Mat3_t<float>;
     using Mat4f = Mat4_t<float>;
+
+    template <typename D, int N>
+    VecImpl_t<D, N> operator + (const VecImpl_t<D, N>& v1, const VecImpl_t<D, N>& v2)
+    {
+        VecImpl_t<D, N> result;
+        for (int i = 0; i < N; i++) {
+            result[i] = v1[i] + v2[i];
+        }
+        return result;
+    }
+
+    template <typename D, int N>
+    VecImpl_t<D, N> operator - (const VecImpl_t<D, N>& v1, const VecImpl_t<D, N>& v2)
+    {
+        VecImpl_t<D, N> result;
+        for (int i = 0; i < N; i++) {
+            result[i] = v1[i] - v2[i];
+        }
+        return result;
+    }
+
+    template <typename D, int N>
+    VecImpl_t<D, N> operator * (const VecImpl_t<D, N>& v, const D& f)
+    {
+        VecImpl_t<D, N> result;
+        for (int i = 0; i < N; i++) {
+            result[i] = v[i] * f;
+        }
+        return result;
+    }
+
+    template <typename D, int N>
+    VecImpl_t<D, N> operator / (const VecImpl_t<D, N>& v, const D& f)
+    {
+        //ASSERT(f != static_cast<D>(0));
+        return v * (1 / f);
+    }
+
+    template <typename D, int N>
+    VecImpl_t<D, N> operator * (const D& f, const VecImpl_t<D, N>& v)
+    {
+        return v * f;
+    }
+
+    template <typename D, int N>
+    VecImpl_t<D, N> operator * (const MatImpl_t<D, N>& m, const VecImpl_t<D, N>& v)
+    {
+        VecImpl_t<D, N> result;
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) {
+                result[i] += m[j][i] * v[j];
+            }
+        }
+        return result;
+    }
+
+    template <typename D, int N>
+    MatImpl_t<D, N> operator * (const MatImpl_t<D, N>& m1, const MatImpl_t<D, N>& m2)
+    {
+        MatImpl_t<D, N> result;
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) {
+                for (int k = 0; k < N; k++) {
+                    result[i][j] += m1[i][k] * m2[k][j];
+                }
+            }
+        }
+        return result;
+    }
+
+    template <typename D, int N>
+    MatImpl_t<D, N> operator * (const MatImpl_t<D, N>& m, const D& f)
+    {
+        MatImpl_t<D, N> result;
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) {
+                result[i][j] = m[i][j] * f;
+            }
+        }
+        return result;
+    }
+
+    template <typename D, int N>
+    MatImpl_t<D, N> operator * (const D& f, const MatImpl_t<D, N>& m)
+    {
+        return m * f;
+    }
+
+    template <typename D, int N>
+    MatImpl_t<D, N> operator / (const MatImpl_t<D, N>& m, const D& f)
+    {
+        //ASSERT(f != static_cast<D>(0));
+        return m * (1 / f);
+    }
 }

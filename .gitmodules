@@ -4,3 +4,6 @@
 [submodule "third/glad"]
 	path = third/glad
 	url = git@git.zhlh6.cn:KeyFicller/glad.git
+[submodule "third/glm"]
+	path = third/glm
+	url = git@git.zhlh6.cn:KeyFicller/glm.git

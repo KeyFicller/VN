@@ -2,12 +2,21 @@
 
 namespace VN
 {
-    const char* vertex_shader_source = "#version 330 core\n"
-        "layout (location = 0) in vec3 aPos;\n"
-        "void main()\n"
-        "{\n"
-        "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-        "}\0";
+    const char* vertex_shader_source = R"(
+        #version 440 core
+        layout (location = 0) in vec3 aPosition;
+        
+        layout (std140, binding = 0) uniform Camera
+        {
+            mat4 u_ViewProjection;
+        };
+
+        void main()
+        {
+           gl_Position = u_ViewProjection * vec4(aPosition.x, aPosition.y, aPosition.z, 1.0f);
+        }
+    )";
+
     const char* fragment_shader_source = "#version 330 core\n"
         "out vec4 FragColor;\n"
         "void main()\n"
@@ -85,6 +94,22 @@ namespace VN
         }
 
         m_renderer_id = program;
+    }
+
+    GLint shader::location(const std::string& key)
+    {
+        if (m_location_map.find(key) == m_location_map.end())
+        {
+            GLint location = glGetUniformLocation(m_renderer_id, key.c_str());
+            //ASSERT(location != -1, "Key '%s' not found.", key.c_str());
+            m_location_map[key] = location;
+        }
+        return m_location_map[key];
+    }
+
+    void shader::set_matrix4(const std::string& key, const Mat4f& value)
+    {
+        glUniformMatrix4fv(location(key), 1, GL_FALSE, &(value.m_Data[0].m_Data[0]));
     }
 
     nurb_curve_shader& nurb_curve_shader::instance()

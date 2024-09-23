@@ -2,6 +2,7 @@
 
 #include "camera.h"
 #include "shader.h"
+#include "vector_matrix.h"
 
 #include "GLFW/glfw3.h"
 #include "GL/GLU.h"
@@ -20,26 +21,7 @@ void initNURBS()
     gluNurbsProperty(nurbs, GLU_DISPLAY_MODE, GLU_FILL);
 }
 
-GLfloat controlPoints[4][3] = {
-    { -1.0, -1.0, 0.0 },
-    {  1.0, -1.0, 0.0 },
-    {  1.0,  1.0, 0.0 },
-    { -1.0,  1.0, 0.0 }
-};
-
-void render() {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glLoadIdentity();
-
-    // 设置视角
-    gluLookAt(0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
-
-    // 绘制NURBS曲线
-    GLfloat knotVector[] = { 0.0, 0.0, 0.0, 1.0, 1.0, 1.0 };
-    gluNurbsCurve(nurbs, 6, knotVector, 3, &controlPoints[0][0], 3, GL_MAP1_VERTEX_3);
-}
-
-void test()
+void test(const ::VN::Mat4f& mat)
 {
     float ctrlpoints[4][4][3] = {
         {{0100.0,270.0,0.0},//p00
@@ -58,13 +40,18 @@ void test()
         {430.0,180.0,0.0},//p31
         {440.0,160.0,0.0},//p32
         {490.0,120.0,1.0}}//p33
-
     };
 
     for (int i = 0; i < 4; i++)
+    {
         for (int j = 0; j < 4; j++)
+        {
+            ::VN::Vec3f pos(ctrlpoints[i][j][0], ctrlpoints[i][j][1] , ctrlpoints[i][j][2]);
+            pos = (mat * ::VN::Vec4f(pos, 1.0f)).xyz();
             for (int k = 0; k < 3; k++)
-                ctrlpoints[i][j][k] /= 200.f;
+                ctrlpoints[i][j][k] = pos[k];
+        }
+    }
 
     glPushMatrix();
     //绘制控制点与控制线
@@ -101,7 +88,7 @@ void test()
     glLineWidth(1.0f);
     glColor3f(0.0, 0.0, 0.0);
 
-    gluNurbsProperty(nurbs, GLU_SAMPLING_TOLERANCE, 25.0); //设置属性
+    gluNurbsProperty(nurbs, GLU_SAMPLING_TOLERANCE, 10.0); //设置属性
     gluNurbsProperty(nurbs, GLU_DISPLAY_MODE, GLU_OUTLINE_POLYGON);
     gluBeginSurface(nurbs);//开始绘制
     gluNurbsSurface(nurbs,
@@ -153,6 +140,20 @@ int main()
         return -1;
     }
 
+    ::VN::camera cam(window, 45.f, 1.5f, 0.1f, 1000.f);
+
+    glfwSetWindowUserPointer(window, &cam);
+
+    // add event callbacks
+    glfwSetScrollCallback(window, [](GLFWwindow* window, double xOffset, double yOffset) {
+        ::VN::mouse_scrolled_event event(static_cast<float>(xOffset), static_cast<float>(yOffset));
+        ((::VN::camera*)glfwGetWindowUserPointer(window))->on_event(event);
+    });
+
+    glfwSetWindowSizeCallback(window, [](GLFWwindow* window, int width, int height) {
+        glViewport(0, 0, width, height);
+    });
+
     initNURBS();
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
@@ -193,7 +194,7 @@ int main()
     // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
     glBindVertexArray(0); 
 
-    glClearColor(0.6, 0.2, 0.2, 0.8);
+    glClearColor(0.2, 0.2, 0.2, 0.8);
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
@@ -202,11 +203,8 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT);
 
         VN::nurb_surface_shader::instance().bind();
-//        glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
-////glDrawArrays(GL_TRIANGLES, 0, 6);
-//        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-//        // glBindVertexArray(0); // no need to unbind it every time
-        test();
+
+        test(cam.view_projection_matrix());
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);

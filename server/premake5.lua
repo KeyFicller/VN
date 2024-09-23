@@ -8,7 +8,8 @@ project "server"
     objdir(envir_work_space_directory .. "/bin-int/" .. envir_output_directory .. "/%{prj.name}")
 
     defines {
-        "VN_PROJECT"
+        "VN_PROJECT",
+        "USE_GLM_IN_MODULE"
     }
 
     files {
@@ -31,6 +32,7 @@ project "server"
         envir_include_directory,
         envir_third_party_directory .. "/glfw/include",
         envir_third_party_directory .. "/glad/include",
+        envir_third_party_directory .. "/glm"
     }
 
     postbuildcommands {
