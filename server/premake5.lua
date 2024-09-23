@@ -38,5 +38,6 @@ project "server"
 
     links {
         "glfw",
-        "opengl32.lib"
+        "opengl32.lib",
+        "glu32.lib"
     }

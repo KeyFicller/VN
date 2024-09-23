@@ -2,10 +2,40 @@
 
 #include "GLFW/glfw3.h"
 
+#include "GL/GLU.h"
+
 #include <iostream>
 #include <WinSock2.h>
 
 #pragma comment(lib, "ws2_32.lib")
+
+GLUnurbsObj* nurbs;
+
+void initNURBS()
+{
+    nurbs = gluNewNurbsRenderer();
+    gluNurbsProperty(nurbs, GLU_SAMPLING_TOLERANCE, 25.0);
+    gluNurbsProperty(nurbs, GLU_DISPLAY_MODE, GLU_FILL);
+}
+
+GLfloat controlPoints[4][3] = {
+    { -1.0, -1.0, 0.0 },
+    {  1.0, -1.0, 0.0 },
+    {  1.0,  1.0, 0.0 },
+    { -1.0,  1.0, 0.0 }
+};
+
+void render() {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glLoadIdentity();
+
+    // 设置视角
+    gluLookAt(0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+
+    // 绘制NURBS曲线
+    GLfloat knotVector[] = { 0.0, 0.0, 0.0, 1.0, 1.0, 1.0 };
+    gluNurbsCurve(nurbs, 6, knotVector, 3, &controlPoints[0][0], 3, GL_MAP1_VERTEX_3);
+}
 
 int main()
 {
@@ -26,11 +56,15 @@ int main()
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
 
+    initNURBS();
+
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window))
     {
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT);
+
+        render();
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
