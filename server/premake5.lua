@@ -11,6 +11,7 @@ project "server"
     }
 
     files {
+        envir_include_directory .. "/**.h",
         "inc/**.h",
         "src/**.cpp",
         "premake5.lua"
