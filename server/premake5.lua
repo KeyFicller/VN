@@ -29,6 +29,7 @@ project "server"
     includedirs {
         "inc",
         envir_include_directory,
+        envir_third_party_directory .. "/glfw/include"
     }
 
     postbuildcommands {
@@ -36,5 +37,6 @@ project "server"
     }
 
     links {
-        
+        "glfw",
+        "opengl32.lib"
     }

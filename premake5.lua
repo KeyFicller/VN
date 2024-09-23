@@ -5,7 +5,7 @@ envir_output_directory = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 envir_include_directory = envir_work_space_directory .. "/include"
 envir_client_directory = envir_work_space_directory .. "/client"
 envir_server_directory = envir_work_space_directory .. "/server"
-
+envir_third_party_directory = envir_work_space_directory .. "/third"
 
 workspace "VisualNurb"
 	startproject "server"
@@ -27,3 +27,4 @@ workspace "VisualNurb"
 include "client"
 include "server"
 include "premake"
+include "third"
