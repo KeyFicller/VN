@@ -8,6 +8,7 @@ project "server"
     objdir(envir_work_space_directory .. "/bin-int/" .. envir_output_directory .. "/%{prj.name}")
 
     defines {
+        "VN_PROJECT"
     }
 
     files {

@@ -51,9 +51,9 @@ int main()
         return 1;
     }
 
-    std::cout << "Waiting for a client to connect ..." << std::endl;
+    std::cout << "Waiting for a client_instance to connect ..." << std::endl;
 
-    // accept connection from client
+    // accept connection from client_instance
     client_socket = accept(server_socket, (sockaddr*)&client_addr, &client_addr_size);
     if (client_socket == INVALID_SOCKET)
     {

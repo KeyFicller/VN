@@ -8,6 +8,7 @@ envir_server_directory = envir_work_space_directory .. "/server"
 
 
 workspace "VisualNurb"
+	startproject "server"
 	configurations {
 		"Debug",
 		"Release"
