@@ -2,7 +2,19 @@
 
 namespace VN
 {
-    
+    const char* vertex_shader_source = "#version 330 core\n"
+        "layout (location = 0) in vec3 aPos;\n"
+        "void main()\n"
+        "{\n"
+        "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+        "}\0";
+    const char* fragment_shader_source = "#version 330 core\n"
+        "out vec4 FragColor;\n"
+        "void main()\n"
+        "{\n"
+        "   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
+        "}\n\0";
+
     shader::~shader()
     {
         glDeleteProgram(m_renderer_id);
@@ -96,8 +108,8 @@ namespace VN
     {
         static std::unordered_map<GLenum, std::string> s_shader_srcs =
         {
-            {GL_VERTEX_SHADER, R"(...)"},
-            {GL_FRAGMENT_SHADER,  R"(...)"}
+            {GL_VERTEX_SHADER, vertex_shader_source},
+            {GL_FRAGMENT_SHADER, fragment_shader_source}
         };
 
         static nurb_surface_shader s_shader;
