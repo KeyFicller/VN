@@ -116,7 +116,7 @@ int main()
     // listening
     if (listen(server_socket, SOMAXCONN) == SOCKET_ERROR)
     {
-        std::cerr << "Scoket listening failed. Error: " << WSAGetLastError() << std::endl;
+        std::cerr << "Socket listening failed. Error: " << WSAGetLastError() << std::endl;
         closesocket(server_socket);
         WSACleanup();
         return 1;
@@ -128,7 +128,7 @@ int main()
     client_socket = accept(server_socket, (sockaddr*)&client_addr, &client_addr_size);
     if (client_socket == INVALID_SOCKET)
     {
-        std::cerr << "Scoket acceptiing failed. Error: " << WSAGetLastError() << std::endl;
+        std::cerr << "Socket accepting failed. Error: " << WSAGetLastError() << std::endl;
         closesocket(server_socket);
         WSACleanup();
         return 1;
@@ -143,7 +143,7 @@ int main()
         {
             // operations with message
             buffer[bytes_received % 1024] = '\0';
-            std::cout << "Message recived: " << buffer << std::endl;
+            std::cout << "Message received: " << buffer << std::endl;
         }
     }
 

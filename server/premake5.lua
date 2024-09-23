@@ -29,7 +29,8 @@ project "server"
     includedirs {
         "inc",
         envir_include_directory,
-        envir_third_party_directory .. "/glfw/include"
+        envir_third_party_directory .. "/glfw/include",
+        envir_third_party_directory .. "/glad/include",
     }
 
     postbuildcommands {
@@ -39,5 +40,6 @@ project "server"
     links {
         "glfw",
         "opengl32.lib",
-        "glu32.lib"
+        "glu32.lib",
+        "glad"
     }

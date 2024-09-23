@@ -1,3 +1,6 @@
 [submodule "third/glfw"]
 	path = third/glfw
 	url = git@git.zhlh6.cn:KeyFicller/glfw.git
+[submodule "third/glad"]
+	path = third/glad
+	url = git@git.zhlh6.cn:KeyFicller/glad.git

@@ -370,7 +370,7 @@ namespace VN
             static void* s_ptr = nullptr;
             static plot_options s_opt;
 
-            // drag here to start, modify gobal variables by your self.
+            // drag here to start, modify global variables by your self.
             (void)0;
 
             instance().plot_nurb_surface(s_ptr, s_opt);
