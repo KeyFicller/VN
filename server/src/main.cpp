@@ -1,7 +1,9 @@
 #include "visual_nurb.h"
 
-#include "GLFW/glfw3.h"
+#include "camera.h"
+#include "shader.h"
 
+#include "GLFW/glfw3.h"
 #include "GL/GLU.h"
 
 #include <iostream>

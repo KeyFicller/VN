@@ -1,5 +1,7 @@
 #pragma once
 
+#include "serialize_stream.h"
+
 #include <iostream>
 #include <winsock2.h>
 #include <WS2tcpip.h>
@@ -8,11 +10,15 @@
  */
 #define VN_PORT    54000
 
+#define VN_FLAG_CURVE            ((int)0)
+#define VN_FLAG_SURFACE          ((int)1)
+
 /*
  * @breif Macro
  */
 #define VN_PLOT_CURVE(PTR, ...)      ::VN::client_instance::instace().plot_nurb_curve(PTR, plot_options{##__VA_ARGS__})
 #define VN_PLOT_SURFACE(PTR, ...)    ::VN::client_instance::instace().plot_nurb_surface(PTR, plot_options{##__VA_ARGS__})
+
 
 /**
  * Overall:
@@ -35,6 +41,8 @@ namespace VN
         int num_kt;
         VsLim1 bnd;
         double* knots;
+
+        ~VsParmDat() { delete[] knots; }
     };
 
     struct VsLim3
@@ -52,6 +60,8 @@ namespace VN
         int num_cp;
         VsLim3 box;
         double* list;
+
+        ~VsCtrlPointData() { delete[] list; }
     };
 
     struct VsNurbCurv
@@ -92,19 +102,159 @@ namespace VN
     struct VsNurbSurf;
 #endif
 
+    template <>
+    void seralize_stream::write(const VsParmDat& value)
+    {
+        write(value.closed);
+        write(value.degree);
+        write(value.num_kt);
+        write(value.bnd);
+
+        for (int i = 0; i < value.num_kt; i++)
+        {
+            write(value.knots[i]);
+        }
+    }
+
+    template <>
+    void seralize_stream::read(VsParmDat& value)
+    {
+        read(value.closed);
+        read(value.degree);
+        read(value.num_kt);
+        read(value.bnd);
+
+        delete[] value.knots;
+        value.knots = new double[value.num_kt];
+
+        for (int i = 0; i < value.num_kt; i++)
+        {
+            read(value.knots[i]);
+        }
+    }
+
+    template <>
+    void seralize_stream::write(const VsCtrlPointData& value)
+    {
+        write(value.rat);
+        write(value.dim);
+        write(value.plane);
+        write(value.num_cp);
+        write(value.box);
+
+        for (int i = 0; i < value.dim * value.num_cp; i++)
+        {
+            write(value.list[i]);
+        }
+    }
+
+    template <>
+    void seralize_stream::read(VsCtrlPointData& value)
+    {
+        read(value.rat);
+        read(value.dim);
+        read(value.plane);
+        read(value.num_cp);
+        read(value.box);
+
+        delete[] value.list;
+        value.list = new double[value.dim * value.num_cp];
+
+        for (int i = 0; i < value.dim * value.num_cp; i++)
+        {
+            read(value.list[i]);
+        }
+    }
+
+    template <>
+    void seralize_stream::write(const VsNurbCurv& value)
+    {
+        write(value.type);
+        write(value.mem);
+        write(value.t);
+        write(value.cp);
+    }
+
+    template <>
+    void seralize_stream::read(VsNurbCurv& value)
+    {
+        read(value.type);
+        read(value.mem);
+        read(value.t);
+        read(value.cp);
+    }
+
+    template <>
+    void seralize_stream::write(const VsProfile& value)
+    {
+        write(value.num_cv);
+        write(value.next);
+        write(value.in);
+
+        for (int i = 0; i < value.num_cv; i++)
+        {
+            write(value.list_cv[i]);
+        }
+    }
+
+    template <>
+    void seralize_stream::read(VsProfile& value)
+    {
+        read(value.num_cv);
+        read(value.next);
+        read(value.in);
+
+        delete[] value.list_cv;
+        value.list_cv = new VsNurbCurv[value.num_cv];
+
+        for (int i = 0; i < value.num_cv; i++)
+        {
+            read(value.list_cv[i]);
+        }
+    }
+
+    template <>
+    void seralize_stream::write(const VsNurbSurf& value)
+    {
+        write(value.type);
+        write(value.mem);
+        write(value.out_norm);
+        write(value.offset);
+        write(value.u);
+        write(value.v);
+        write(value.cp);
+        write(value.num_loop);
+
+        for (int i = 0; i < value.num_loop; i++)
+        {
+            write(value.list_loop[i]);
+        }
+    }
+
+    template <>
+    void seralize_stream::read(VsNurbSurf& value)
+    {
+        read(value.type);
+        read(value.mem);
+        read(value.out_norm);
+        read(value.offset);
+        read(value.u);
+        read(value.v);
+        read(value.cp);
+        read(value.num_loop);
+
+        delete[] value.list_loop;
+        value.list_loop = new VsProfile[value.num_loop];
+
+        for (int i = 0; i < value.num_loop; i++)
+        {
+            read(value.list_loop[i]);
+        }
+    }
+
     struct plot_options
     {
         unsigned int color = 0xFFFFFF;
-    };
-
-    struct nurb_curve_data
-    {
-        
-    };
-
-    struct nurb_surface_data
-    {
-        
     };
 
     class client_instance
@@ -174,12 +324,26 @@ namespace VN
                 return;
             }
 
+            seralize_stream ss;
+            ss.write(VN_FLAG_CURVE);
+            ss.write(*p_nurb_crv);
 
+            send(m_client_socket, ss.data().data(), ss.data().size(), 0);
         }
 
         void plot_nurb_surface(void* ptr, const plot_options& opt)
         {
+            VsNurbSurf* p_nurb_srf = reinterpret_cast<VsNurbSurf*>(ptr);
+            if (!p_nurb_srf)
+            {
+                return;
+            }
 
+            seralize_stream ss;
+            ss.write(VN_FLAG_SURFACE);
+            ss.write(*p_nurb_srf);
+
+            send(m_client_socket, ss.data().data(), ss.data().size(), 0);
         }
 
         static void plot_nurb_curve_debugging()
