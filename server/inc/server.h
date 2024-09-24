@@ -15,6 +15,8 @@
 
 namespace VN
 {
+    class VsNurbSurf;
+
     class server_instance
     {
     public:
@@ -35,9 +37,13 @@ namespace VN
         int init_nurb_renderer();
         int init_socket();
 
+        int terminate_socket();
+
         int on_message_reviced();
 
-        int draw_nurbs();
+        int draw_nurbs_example();
+
+        int draw_nurbs_surf();
 
     private:
         GLFWwindow* m_window = nullptr;
@@ -47,5 +53,9 @@ namespace VN
         WSADATA wsa_data;
         SOCKET server_socket, client_socket;
         sockaddr_in server_addr, client_addr;
+
+        VsNurbSurf* m_srf = nullptr;
+
+        bool m_need_reconnect = false;
     };
 }

@@ -14,7 +14,7 @@ namespace VN
         }
 
         seralize_stream(char* data, int bytes)
-            : m_index(0), m_last_index(0)
+            : m_index(0), m_last_index(bytes)
         {
             m_data.resize(bytes);
             memcpy_s(m_data.data(), bytes, data, bytes);

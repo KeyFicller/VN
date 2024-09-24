@@ -13,11 +13,13 @@
 #define VN_FLAG_CURVE            ((int)0)
 #define VN_FLAG_SURFACE          ((int)1)
 
+#define VN_FLAG_DISCONNECT       ((int)6)
+
 /*
  * @breif Macro
  */
-#define VN_PLOT_CURVE(PTR, ...)      ::VN::client_instance::instace().plot_nurb_curve(PTR, plot_options{##__VA_ARGS__})
-#define VN_PLOT_SURFACE(PTR, ...)    ::VN::client_instance::instace().plot_nurb_surface(PTR, plot_options{##__VA_ARGS__})
+#define VN_PLOT_CURVE(PTR, ...)      ::VN::client_instance::instance().plot_nurb_curve(PTR, ::VN::plot_options{##__VA_ARGS__})
+#define VN_PLOT_SURFACE(PTR, ...)    ::VN::client_instance::instance().plot_nurb_surface(PTR, ::VN::plot_options{##__VA_ARGS__})
 
 
 /**
@@ -40,7 +42,7 @@ namespace VN
         int degree;
         int num_kt;
         VsLim1 bnd;
-        double* knots;
+        double* knots = nullptr;
 
         ~VsParmDat() { delete[] knots; }
     };
@@ -59,7 +61,7 @@ namespace VN
         int plane;
         int num_cp;
         VsLim3 box;
-        double* list;
+        double* list = nullptr;
 
         ~VsCtrlPointData() { delete[] list; }
     };
@@ -78,7 +80,7 @@ namespace VN
         int num_cv;
         int next;
         int in;
-        VsNurbCurv* list_cv;
+        VsNurbCurv* list_cv = nullptr;
 
         ~VsProfile() { delete[] list_cv; }
     };
@@ -95,15 +97,15 @@ namespace VN
         VsCtrlPointData cp;
 
         int num_loop;
-        VsProfile* list_loop;
+        VsProfile* list_loop = nullptr;
 
         ~VsNurbSurf() { delete[] list_loop; }
     };
 
 #else
-    // forward declare
-    struct VsNurbCurv;
-    struct VsNurbSurf;
+    //// forward declare
+    //struct VsNurbCurv;
+    //struct VsNurbSurf;
 #endif
 
     template <>
@@ -128,7 +130,8 @@ namespace VN
         read(value.num_kt);
         read(value.bnd);
 
-        delete[] value.knots;
+        if (value.knots)
+            delete[] value.knots;
         value.knots = new double[value.num_kt];
 
         for (int i = 0; i < value.num_kt; i++)
@@ -161,7 +164,8 @@ namespace VN
         read(value.num_cp);
         read(value.box);
 
-        delete[] value.list;
+        if (value.list)
+            delete[] value.list;
         value.list = new double[value.dim * value.num_cp];
 
         for (int i = 0; i < value.dim * value.num_cp; i++)
@@ -208,7 +212,8 @@ namespace VN
         read(value.next);
         read(value.in);
 
-        delete[] value.list_cv;
+        if (value.list_cv)
+            delete[] value.list_cv;
         value.list_cv = new VsNurbCurv[value.num_cv];
 
         for (int i = 0; i < value.num_cv; i++)
@@ -247,7 +252,8 @@ namespace VN
         read(value.cp);
         read(value.num_loop);
 
-        delete[] value.list_loop;
+        if (value.list_loop)
+            delete[] value.list_loop;
         value.list_loop = new VsProfile[value.num_loop];
 
         for (int i = 0; i < value.num_loop; i++)
@@ -291,6 +297,14 @@ namespace VN
                 return;
             }
 
+            //// set unlock
+            //static unsigned long mode = 1;
+            //if (ioctlsocket(m_client_socket, FIONBIO, &mode) != 0)
+            //{
+            //    closesocket(m_client_socket);
+            //    return;
+            //}
+
             // set server address
             m_server_addr.sin_family = AF_INET;
             m_server_addr.sin_port = htons(VN_PORT);
@@ -308,6 +322,10 @@ namespace VN
 
         ~client_instance()
         {
+            seralize_stream ss;
+            ss.write(VN_FLAG_DISCONNECT);
+            send(m_client_socket, ss.data().data(), ss.data().size(), 0);
+
             closesocket(m_client_socket);
             WSACleanup();
         }

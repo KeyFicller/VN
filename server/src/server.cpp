@@ -27,14 +27,13 @@ namespace VN
 
     server_instance::~server_instance()
     {
+        delete m_srf;
+
         gluDeleteNurbsRenderer(m_nurbs);
         delete m_cam;
         glfwTerminate();
 
-        // close socket
-        closesocket(client_socket);
-        closesocket(server_socket);
-        WSACleanup();
+        terminate_socket();
     }
 
     void server_instance::init()
@@ -53,12 +52,21 @@ namespace VN
         {
             on_message_reviced();
 
+            if (m_need_reconnect)
+            {
+                terminate_socket();
+                init_socket();
+                m_need_reconnect = false;
+            }
+
             glClear(GL_COLOR_BUFFER_BIT);
 
             m_cam->on_update(delta_time());
 
             // VN::nurb_surface_shader::instance().bind();
-            draw_nurbs();
+            // draw_nurbs_example();
+            if (m_srf)
+                draw_nurbs_surf();
 
             /* Swap front and back buffers */
             glfwSwapBuffers(m_window);
@@ -137,6 +145,13 @@ namespace VN
             return 1;
         }
 
+        static unsigned long mode = 1;
+        if (ioctlsocket(server_socket, FIONBIO, &mode) != 0)
+        {
+            closesocket(server_socket);
+            return 1;
+        }
+
         // set server address
         server_addr.sin_family = AF_INET;
         server_addr.sin_addr.s_addr = INADDR_ANY;
@@ -157,20 +172,30 @@ namespace VN
             std::cerr << "Socket listening failed. Error: " << WSAGetLastError() << std::endl;
             closesocket(server_socket);
             WSACleanup();
-            return 1;
         }
 
         std::cout << "Waiting for a client_instance to connect ..." << std::endl;
 
         // accept connection from client_instance
-        client_socket = accept(server_socket, (sockaddr*)&client_addr, &client_addr_size);
-        if (client_socket == INVALID_SOCKET)
+        while (true)
         {
-            std::cerr << "Socket accepting failed. Error: " << WSAGetLastError() << std::endl;
-            closesocket(server_socket);
-            WSACleanup();
-            return 1;
+
+            client_socket = accept(server_socket, (sockaddr*)&client_addr, &client_addr_size);
+            if (client_socket != INVALID_SOCKET)
+            {
+                break;
+            }
         }
+
+        return 0;
+    }
+
+    int server_instance::terminate_socket()
+    {
+        // close socket
+        closesocket(client_socket);
+        closesocket(server_socket);
+        WSACleanup();
 
         return 0;
     }
@@ -183,23 +208,33 @@ namespace VN
         {
             seralize_stream ss(buffer, bytes_received);
 
-            //int type = VN_FLAG_SURFACE;
-            //ss.read(type);
-            //if (type == VN_FLAG_CURVE)
-            //{
-            //    // TODO:
-            //}
-            //if (type == VN_FLAG_SURFACE)
-            //{
-            //    VsNurbSurf nurb;
-            //    ss.read(nurb);
-            //}
+            int type = -1;
+            ss.read(type);
+            if (type == VN_FLAG_CURVE)
+            {
+                // TODO:
+            }
+            if (type == VN_FLAG_SURFACE)
+            {
+                delete m_srf;
+                m_srf = new VsNurbSurf;
+                ss.read(*m_srf);
+            }
+            else if (type == VN_FLAG_DISCONNECT)
+            {
+                //TODO: temporary solution
+                m_need_reconnect = true;
+            }
+        }
+        else
+        {
+            std::cout << "hanging." << std::endl;
         }
 
         return 0;
     }
 
-    int server_instance::draw_nurbs()
+    int server_instance::draw_nurbs_example()
     {
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
@@ -274,6 +309,143 @@ namespace VN
             3,
             &ctrlpoints[0][0][0],
             4, 4,
+            GL_MAP2_VERTEX_3);
+
+        gluEndSurface(m_nurbs); //结束绘制
+
+        for (int j = 0; j <= 8; j++)
+        {
+            glBegin(GL_LINE_STRIP);
+            for (int i = 0; i <= 30; i++)
+                glEvalCoord2f((GLfloat)i / 30.0, (GLfloat)j / 8.0);
+            glEnd();
+            glBegin(GL_LINE_STRIP);
+            for (int i = 0; i <= 30; i++)
+                glEvalCoord2f((GLfloat)j / 8.0, (GLfloat)i / 30.0);
+            glEnd();
+        }
+        glPopMatrix();
+
+        return 0;
+    }
+
+    int server_instance::draw_nurbs_surf()
+    {
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        gluPerspective(m_cam->m_vertical_fov, m_cam->m_aspect_ratio, m_cam->m_near_clip, m_cam->m_far_clip);
+
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        gluLookAt(m_cam->eye().x(), m_cam->eye().y(), m_cam->eye().z(), m_cam->look_at().x(), m_cam->look_at().y(), m_cam->look_at().z(),
+            m_cam->up_direction().x(), m_cam->up_direction().y(), m_cam->up_direction().z());
+
+        std::vector<float> ctrl_points;
+        int u_ctrl_num = 0;
+        int v_ctrl_num = 0;
+        std::vector<float> u_knots;
+        int u_knot_num = 0;
+        std::vector<float> v_knots;
+        int v_knot_num = 0;
+        int u_order = 0;
+        int v_order = 0;
+        int dim = 3;
+
+        /**
+         * variables initialize
+         */
+
+        u_knot_num = m_srf->u.num_kt;
+        for (int i = 0; i < m_srf->u.num_kt; i++)
+            u_knots.emplace_back(m_srf->u.knots[i]);
+
+        v_knot_num = m_srf->v.num_kt;
+        for (int i = 0; i < m_srf->v.num_kt; i++)
+            v_knots.emplace_back(m_srf->v.knots[i]);
+
+        u_order = m_srf->u.degree + 1;
+        v_order = m_srf->v.degree + 1;
+        u_ctrl_num = u_knot_num - u_order;
+        v_ctrl_num = v_knot_num - v_order;
+
+        switch (m_srf->cp.dim)
+        {
+        case 2:
+        {
+
+            for (int i = 0; i < m_srf->cp.num_cp; i++)
+            {
+                for (int j = 0; j < 2; j++)
+                    ctrl_points.emplace_back(m_srf->cp.list[i * 2 + j]);
+                ctrl_points.emplace_back(0.0);
+            }
+            break;
+        }
+        case 3:
+        {
+            for (int i = 0; i < m_srf->cp.num_cp; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                    ctrl_points.emplace_back(m_srf->cp.list[i * 3 + j]);
+            }
+            break;
+        }
+        case 4:
+        {
+            for (int i = 0; i < m_srf->cp.num_cp; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                    ctrl_points.emplace_back(m_srf->cp.list[i * 4 + j] * m_srf->cp.list[i * 4 + 3]);
+            }
+            break;
+        }
+        }
+
+        int u_stride = v_ctrl_num * dim;
+        int v_stride = dim;
+
+        glPushMatrix();
+        //绘制控制点与控制线
+        glScaled(0.2, 0.2, 0.2);
+
+        glPointSize(4.0f);
+        glColor3f(0.0, 0.0, 1.0);
+        glColor3f(0, 0, 1);
+        glBegin(GL_POINTS);
+        for (int i = 0; i < u_ctrl_num; i++)
+        {
+            for (int j = 0; j < v_ctrl_num; j++)
+                glVertex3fv(&ctrl_points[i * v_ctrl_num * dim + j * dim]);
+        }
+        glEnd();
+        //绘制控制线
+        glLineWidth(1.5f);
+        glColor3f(0.0, 1.0, 1.0);
+        for (int i = 0; i < u_ctrl_num; i++)
+        {
+            glBegin(GL_LINE_STRIP);
+            for (int j = 0; j < v_ctrl_num; j++)
+                glVertex3fv(&ctrl_points[i * v_ctrl_num * dim + j * dim]);
+            glEnd();
+        }
+        for (int i = 0; i < v_ctrl_num; i++)
+        {
+            glBegin(GL_LINE_STRIP);
+            for (int j = 0; j < u_ctrl_num; j++)
+                glVertex3fv(&ctrl_points[j * v_ctrl_num * dim + i * dim]);
+            glEnd();
+        }
+
+        gluNurbsProperty(m_nurbs, GLU_SAMPLING_TOLERANCE, 25); //设置属性
+        gluNurbsProperty(m_nurbs, GLU_DISPLAY_MODE, GLU_OUTLINE_POLYGON);
+        gluBeginSurface(m_nurbs);//开始绘制
+        gluNurbsSurface(m_nurbs,
+            u_knot_num, u_knots.data(),
+            v_knot_num, v_knots.data(),
+            u_stride,
+            v_stride,
+            ctrl_points.data(),
+            u_order, v_order,
             GL_MAP2_VERTEX_3);
 
         gluEndSurface(m_nurbs); //结束绘制
