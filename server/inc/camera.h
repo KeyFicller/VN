@@ -35,7 +35,7 @@ namespace VN
         const Vec3f right_direction() const;
         const Vec3f forward_direction() const;
         const Vec3f eye() const;
-        const Vec3f lookAt() const;
+        const Vec3f look_at() const;
 
     protected:
         void update_view_matrix();
@@ -50,7 +50,7 @@ namespace VN
         float zoom_speed() const;
         const glm::quat orientation() const;
 
-    protected:
+    public:
         GLFWwindow* m_window = nullptr;
         float m_vertical_fov = 45.f;
         float m_aspect_ratio = 1.5f;

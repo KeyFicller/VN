@@ -79,6 +79,8 @@ namespace VN
         int next;
         int in;
         VsNurbCurv* list_cv;
+
+        ~VsProfile() { delete[] list_cv; }
     };
 
     struct VsNurbSurf
@@ -94,6 +96,8 @@ namespace VN
 
         int num_loop;
         VsProfile* list_loop;
+
+        ~VsNurbSurf() { delete[] list_loop; }
     };
 
 #else

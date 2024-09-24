@@ -129,7 +129,7 @@ namespace VN
         return m_eye;
     }
 
-    const Vec3f camera::lookAt() const
+    const Vec3f camera::look_at() const
     {
         return m_look_at;
     }

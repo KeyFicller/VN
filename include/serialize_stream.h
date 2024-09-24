@@ -13,6 +13,13 @@ namespace VN
             m_data.resize(10);
         }
 
+        seralize_stream(char* data, int bytes)
+            : m_index(0), m_last_index(0)
+        {
+            m_data.resize(bytes);
+            memcpy_s(m_data.data(), bytes, data, bytes);
+        }
+
     public:
         void write_bytes(const char* pValue, int bytes)
         {
