@@ -42,8 +42,6 @@ namespace VN
 
         int on_message_reviced();
 
-        int draw_nurbs_example();
-
         int draw_nurbs_surf();
         int draw_nurbs_curve(VsNurbCurv* crv);
 
