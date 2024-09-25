@@ -32,7 +32,8 @@ project "server"
         envir_include_directory,
         envir_third_party_directory .. "/glfw/include",
         envir_third_party_directory .. "/glad/include",
-        envir_third_party_directory .. "/glm"
+        envir_third_party_directory .. "/glm",
+        envir_third_party_directory .. "/CDT/CDT/include"
     }
 
     postbuildcommands {

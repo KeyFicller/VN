@@ -9,8 +9,8 @@ namespace VN
     template <unsigned DIM = 2>
     struct mesh
     {
-        VecImpl_t<double, DIM> nodes;
-        std::vector<std::vector<int>> meshes;
+        std::vector<VecImpl_t<double, DIM>> nodes;
+        std::vector<std::vector<unsigned int>> meshes;
     };
 
     using mesh_uv_coordiante = mesh<2>;

@@ -7,3 +7,6 @@
 [submodule "third/glm"]
 	path = third/glm
 	url = git@git.zhlh6.cn:KeyFicller/glm.git
+[submodule "third/CDT"]
+	path = third/CDT
+	url = git@git.zhlh6.cn:KeyFicller/CDT.git

@@ -2,6 +2,7 @@
 
 #include "camera.h"
 #include "shader.h"
+#include "mesher.h"
 #include "vector_matrix.h"
 
 #include "GLFW/glfw3.h"

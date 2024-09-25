@@ -109,7 +109,7 @@ namespace VN
 #endif
 
     template <>
-    void seralize_stream::write(const VsParmDat& value)
+    inline void seralize_stream::write(const VsParmDat& value)
     {
         write(value.closed);
         write(value.degree);
@@ -123,7 +123,7 @@ namespace VN
     }
 
     template <>
-    void seralize_stream::read(VsParmDat& value)
+    inline void seralize_stream::read(VsParmDat& value)
     {
         read(value.closed);
         read(value.degree);
@@ -141,7 +141,7 @@ namespace VN
     }
 
     template <>
-    void seralize_stream::write(const VsCtrlPointData& value)
+    inline void seralize_stream::write(const VsCtrlPointData& value)
     {
         write(value.rat);
         write(value.dim);
@@ -156,7 +156,7 @@ namespace VN
     }
 
     template <>
-    void seralize_stream::read(VsCtrlPointData& value)
+    inline void seralize_stream::read(VsCtrlPointData& value)
     {
         read(value.rat);
         read(value.dim);
@@ -175,7 +175,7 @@ namespace VN
     }
 
     template <>
-    void seralize_stream::write(const VsNurbCurv& value)
+    inline void seralize_stream::write(const VsNurbCurv& value)
     {
         write(value.type);
         write(value.mem);
@@ -184,7 +184,7 @@ namespace VN
     }
 
     template <>
-    void seralize_stream::read(VsNurbCurv& value)
+    inline void seralize_stream::read(VsNurbCurv& value)
     {
         read(value.type);
         read(value.mem);
@@ -193,7 +193,7 @@ namespace VN
     }
 
     template <>
-    void seralize_stream::write(const VsProfile& value)
+    inline void seralize_stream::write(const VsProfile& value)
     {
         write(value.num_cv);
         write(value.next);
@@ -206,7 +206,7 @@ namespace VN
     }
 
     template <>
-    void seralize_stream::read(VsProfile& value)
+    inline void seralize_stream::read(VsProfile& value)
     {
         read(value.num_cv);
         read(value.next);
@@ -223,7 +223,7 @@ namespace VN
     }
 
     template <>
-    void seralize_stream::write(const VsNurbSurf& value)
+    inline void seralize_stream::write(const VsNurbSurf& value)
     {
         write(value.type);
         write(value.mem);
@@ -241,7 +241,7 @@ namespace VN
     }
 
     template <>
-    void seralize_stream::read(VsNurbSurf& value)
+    inline void seralize_stream::read(VsNurbSurf& value)
     {
         read(value.type);
         read(value.mem);
