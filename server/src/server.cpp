@@ -68,6 +68,9 @@ namespace VN
             if (m_srf)
                 draw_nurbs_surf();
 
+            if (m_crv)
+                draw_nurbs_curve(m_crv);
+
             /* Swap front and back buffers */
             glfwSwapBuffers(m_window);
 
@@ -212,7 +215,9 @@ namespace VN
             ss.read(type);
             if (type == VN_FLAG_CURVE)
             {
-                // TODO:
+                delete m_crv;
+                m_crv = new VsNurbCurv;
+                ss.read(*m_crv);
             }
             if (type == VN_FLAG_SURFACE)
             {
@@ -351,9 +356,6 @@ namespace VN
         int v_order = 0;
         int dim = 3;
 
-        /**
-         * variables initialize
-         */
 
         u_knot_num = m_srf->u.num_kt;
         for (int i = 0; i < m_srf->u.num_kt; i++)
@@ -461,6 +463,95 @@ namespace VN
                 glEvalCoord2f((GLfloat)j / 8.0, (GLfloat)i / 30.0);
             glEnd();
         }
+        glPopMatrix();
+
+        for (int i = 0; i < m_srf->num_loop; i++)
+        {
+            for (int j = 0; j < m_srf->list_loop[i].num_cv; j++)
+            {
+                draw_nurbs_curve(&m_srf->list_loop[i].list_cv[j]);
+            }
+        }
+
+        return 0;
+    }
+
+    int server_instance::draw_nurbs_curve(VsNurbCurv* crv)
+    {
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        gluPerspective(m_cam->m_vertical_fov, m_cam->m_aspect_ratio, m_cam->m_near_clip, m_cam->m_far_clip);
+
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        gluLookAt(m_cam->eye().x(), m_cam->eye().y(), m_cam->eye().z(), m_cam->look_at().x(), m_cam->look_at().y(), m_cam->look_at().z(),
+            m_cam->up_direction().x(), m_cam->up_direction().y(), m_cam->up_direction().z());
+
+        std::vector<float> ctrl_points;
+        std::vector<float> knots;
+        int knot_num = 0;
+        int stride = 0;
+        int order = 0;
+
+        knot_num = crv->t.num_kt;
+        for (int i = 0; i < crv->t.num_kt; i++)
+            knots.emplace_back(crv->t.knots[i]);
+
+        order = crv->t.degree + 1;
+        stride = 3;
+
+        switch (crv->cp.dim)
+        {
+        case 2:
+            {
+            for (int i = 0; i < crv->cp.num_cp; i++)
+            {
+                for (int j = 0; j < 2; j++)
+                    ctrl_points.emplace_back(crv->cp.list[i * 2 + j]);
+                ctrl_points.emplace_back(0.0);
+            }
+            break;
+            }
+        case 3:
+        {
+            for (int i = 0; i < crv->cp.num_cp; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                    ctrl_points.emplace_back(crv->cp.list[i * 3 + j]);
+            }
+            break;
+        }
+        case 4:
+        {
+            for (int i = 0; i < crv->cp.num_cp; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                    ctrl_points.emplace_back(crv->cp.list[i * 4 + j] * crv->cp.list[i * 4 + 3]);
+            }
+            break;
+        }
+        }
+
+        glPushMatrix();
+        //绘制控制点与控制线
+        glScaled(0.2, 0.2, 0.2);
+
+        glLineWidth(1.5f);
+        glColor3f(1.0, 0.0, 0.0);
+
+        gluNurbsProperty(m_nurbs, GLU_SAMPLING_TOLERANCE, 5); //设置属性
+        gluNurbsProperty(m_nurbs, GLU_DISPLAY_MODE, GLU_OUTLINE_POLYGON);
+        gluBeginCurve(m_nurbs);//开始绘制
+        gluNurbsCurve(m_nurbs,
+            knot_num,
+            knots.data(),
+            stride,
+            ctrl_points.data(),
+            order,
+            GL_MAP1_VERTEX_3);
+
+        gluEndCurve(m_nurbs); //结束绘制
+
         glPopMatrix();
 
         return 0;

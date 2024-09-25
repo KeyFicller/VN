@@ -16,6 +16,7 @@
 namespace VN
 {
     class VsNurbSurf;
+    class VsNurbCurv;
 
     class server_instance
     {
@@ -44,6 +45,7 @@ namespace VN
         int draw_nurbs_example();
 
         int draw_nurbs_surf();
+        int draw_nurbs_curve(VsNurbCurv* crv);
 
     private:
         GLFWwindow* m_window = nullptr;
@@ -55,6 +57,7 @@ namespace VN
         sockaddr_in server_addr, client_addr;
 
         VsNurbSurf* m_srf = nullptr;
+        VsNurbCurv* m_crv = nullptr;
 
         bool m_need_reconnect = false;
     };
