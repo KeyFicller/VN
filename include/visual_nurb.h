@@ -77,6 +77,7 @@ namespace VN
 
     struct VsProfile
     {
+        // TODO: need to deal with index form `in`.
         int num_cv;
         int next;
         int in;

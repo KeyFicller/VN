@@ -39,6 +39,7 @@ namespace VN
     void server_instance::init()
     {
         ::VN::VsNurbSurf srf;
+        srf.num_loop = 0;
         mesh_uv_coordiante result = mesher::uv_mesh(&srf);
 
         init_plot_window_and_camera();
