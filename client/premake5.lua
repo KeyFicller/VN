@@ -8,7 +8,8 @@ project "client"
     objdir(envir_work_space_directory .. "/bin-int/" .. envir_output_directory .. "/%{prj.name}")
 
     defines {
-        "VN_PROJECT"
+        "VN_PROJECT",
+        "YAML_CPP_STATIC_DEFINE"
     }
 
     files {
@@ -29,6 +30,7 @@ project "client"
     includedirs {
         "inc",
         envir_include_directory,
+        envir_third_party_directory .. "/yaml-cpp/include"
     }
 
     postbuildcommands {
@@ -36,5 +38,5 @@ project "client"
     }
 
     links {
-        
+        "yaml-cpp"
     }

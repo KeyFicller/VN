@@ -2,6 +2,11 @@
 
 #include <string>
 #include <vector>
+#include <stack>
+#include <fstream>
+#ifdef VN_PROJECT
+#include <yaml-cpp/yaml.h>
+#endif
 
 namespace VN
 {
@@ -57,6 +62,26 @@ namespace VN
         void read(T& value)
         {
             read_bytes((char*)&value, sizeof(T));
+        }
+
+        void dump_file(const std::string& file_path)
+        {
+            std::ofstream fout(file_path);
+            fout << (const char*)m_data.data();
+        }
+
+        void load_file(const std::string& file_path)
+        {
+            std::ifstream fin(file_path);
+            std::stringstream ss;
+            ss << fin.rdbuf();
+
+            std::string str = ss.str();
+            m_data.clear();
+            m_index = 0;
+            m_last_index = 0;
+
+            write_bytes(&str[0], str.size());
         }
 
     private:

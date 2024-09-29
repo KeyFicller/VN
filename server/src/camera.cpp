@@ -1,6 +1,6 @@
 #include "camera.h"
 
-#include "keycodes_and_mouse_buttons.h"
+#include "key_codes.h"
 #include <glm/gtc/matrix_transform.hpp>
 
 

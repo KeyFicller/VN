@@ -9,7 +9,8 @@ project "server"
 
     defines {
         "VN_PROJECT",
-        "USE_GLM_IN_MODULE"
+        "USE_GLM_IN_MODULE",
+        "YAML_CPP_STATIC_DEFINE"
     }
 
     files {
@@ -33,7 +34,8 @@ project "server"
         envir_third_party_directory .. "/glfw/include",
         envir_third_party_directory .. "/glad/include",
         envir_third_party_directory .. "/glm",
-        envir_third_party_directory .. "/CDT/CDT/include"
+        envir_third_party_directory .. "/CDT/CDT/include",
+        envir_third_party_directory .. "/yaml-cpp/include"
     }
 
     postbuildcommands {
@@ -44,5 +46,6 @@ project "server"
         "glfw",
         "opengl32.lib",
         "glu32.lib",
-        "glad"
+        "glad",
+        "yaml-cpp"
     }

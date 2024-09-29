@@ -10,3 +10,6 @@
 [submodule "third/CDT"]
 	path = third/CDT
 	url = git@git.zhlh6.cn:KeyFicller/CDT.git
+[submodule "third/yaml-cpp"]
+	path = third/yaml-cpp
+	url = git@git.zhlh6.cn:KeyFicller/yaml-cpp.git
