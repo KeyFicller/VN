@@ -1,6 +1,9 @@
 #include "server.h"
 
 #include "visual_nurb.h"
+#include <imgui.h>
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_opengl3.h>
 
 namespace VN
 {
@@ -27,6 +30,10 @@ namespace VN
 
     server_instance::~server_instance()
     {
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
+
         delete m_srf;
 
         gluDeleteNurbsRenderer(m_nurbs);
@@ -34,6 +41,7 @@ namespace VN
         glfwTerminate();
 
         terminate_socket();
+
     }
 
     void server_instance::init()
@@ -41,6 +49,7 @@ namespace VN
         init_plot_window_and_camera();
         init_socket();
         init_nurb_renderer();
+        init_gui();
     }
 
     void server_instance::exec()
@@ -61,6 +70,10 @@ namespace VN
 
             glClear(GL_COLOR_BUFFER_BIT);
 
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
+
             m_cam->on_update(delta_time());
 
             // VN::nurb_surface_shader::instance().bind();
@@ -70,6 +83,15 @@ namespace VN
 
             if (m_crv)
                 draw_nurbs_curve(m_crv);
+
+            ImGui::ShowDemoWindow(nullptr);
+
+            ImGuiIO& io = ImGui::GetIO();
+            
+            io.DisplaySize = ImVec2(1000, 800);
+
+            ImGui::Render();
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
             /* Swap front and back buffers */
             glfwSwapBuffers(m_window);
@@ -189,6 +211,22 @@ namespace VN
                 break;
             }
         }
+
+        return 0;
+    }
+
+    int server_instance::init_gui()
+    {
+        IMGUI_CHECKVERSION();
+
+        ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO();
+
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+        ImGui_ImplGlfw_InitForOpenGL(m_window, true);
+        ImGui_ImplOpenGL3_Init("#version 410");
 
         return 0;
     }

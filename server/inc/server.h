@@ -38,6 +38,7 @@ namespace VN
         int init_plot_window_and_camera();
         int init_nurb_renderer();
         int init_socket();
+        int init_gui();
 
         int terminate_socket();
 

@@ -35,7 +35,8 @@ project "server"
         envir_third_party_directory .. "/glad/include",
         envir_third_party_directory .. "/glm",
         envir_third_party_directory .. "/CDT/CDT/include",
-        envir_third_party_directory .. "/yaml-cpp/include"
+        envir_third_party_directory .. "/yaml-cpp/include",
+        envir_third_party_directory .. "/imgui"
     }
 
     postbuildcommands {
@@ -47,5 +48,6 @@ project "server"
         "opengl32.lib",
         "glu32.lib",
         "glad",
-        "yaml-cpp"
+        "yaml-cpp",
+        "imgui"
     }
