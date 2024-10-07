@@ -1,4 +1,4 @@
-#include "server.h"
+#include "client.h"
 
 #include "visual_nurb.h"
 #include <imgui.h>
@@ -28,7 +28,7 @@ namespace VN
         }
     }
 
-    server_instance::~server_instance()
+    vn_client_instance::~vn_client_instance()
     {
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplGlfw_Shutdown();
@@ -40,34 +40,22 @@ namespace VN
         delete m_cam;
         glfwTerminate();
 
-        terminate_socket();
-
     }
 
-    void server_instance::init()
+    void vn_client_instance::init()
     {
         init_plot_window_and_camera();
-        init_socket();
         init_nurb_renderer();
         init_gui();
     }
 
-    void server_instance::exec()
+    void vn_client_instance::exec()
     {
         glClearColor(0.2, 0.2, 0.2, 0.8);
 
         /* Loop until the user closes the window */
         while (!glfwWindowShouldClose(m_window))
         {
-            on_message_reviced();
-
-            if (m_need_reconnect)
-            {
-                terminate_socket();
-                init_socket();
-                m_need_reconnect = false;
-            }
-
             glClear(GL_COLOR_BUFFER_BIT);
 
             ImGui_ImplOpenGL3_NewFrame();
@@ -78,13 +66,19 @@ namespace VN
 
             // VN::nurb_surface_shader::instance().bind();
             // draw_nurbs_example();
-            if (m_srf)
-                draw_nurbs_surf();
+            {
+                std::lock_guard<std::mutex> lkm(m_mutex);
 
-            if (m_crv)
-                draw_nurbs_curve(m_crv);
+                if (m_srf)
+                    draw_nurbs_surf();
 
-            ImGui::ShowDemoWindow(nullptr);
+                if (m_crv)
+                    draw_nurbs_curve(m_crv);
+            }
+
+            // ImGui::ShowDemoWindow(nullptr);
+
+            render_gui();
 
             ImGuiIO& io = ImGui::GetIO();
             
@@ -101,14 +95,14 @@ namespace VN
         }
     }
 
-    int server_instance::init_plot_window_and_camera()
+    int vn_client_instance::init_plot_window_and_camera()
     {
         /* Initialize the library */
         if (!glfwInit())
             return -1;
 
         /* Create a windowed mode window and its OpenGL context */
-        m_window = glfwCreateWindow(640, 480, "Hello World", NULL, NULL);
+        m_window = glfwCreateWindow(640, 480, "VisualNurb", NULL, NULL);
         if (!m_window)
         {
             glfwTerminate();
@@ -141,7 +135,7 @@ namespace VN
         return 0;
     }
 
-    int server_instance::init_nurb_renderer()
+    int vn_client_instance::init_nurb_renderer()
     {
         m_nurbs = gluNewNurbsRenderer();
         gluNurbsProperty(m_nurbs, GLU_SAMPLING_TOLERANCE, 25.0);
@@ -150,77 +144,14 @@ namespace VN
         return 0;
     }
 
-    int server_instance::init_socket()
-    {
-        int client_addr_size = sizeof(client_addr);
-
-        // initialize win sock
-        if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0)
-        {
-            std::cerr << "WSAStartup failed. Error: " << WSAGetLastError() << std::endl;
-            return 1;
-        }
-
-        // create socket
-        server_socket = socket(AF_INET, SOCK_STREAM, 0);
-        if (server_socket == INVALID_SOCKET)
-        {
-            std::cerr << "Socket creation failed. Error: " << WSAGetLastError() << std::endl;
-            WSACleanup();
-            return 1;
-        }
-
-        static unsigned long mode = 1;
-        if (ioctlsocket(server_socket, FIONBIO, &mode) != 0)
-        {
-            closesocket(server_socket);
-            return 1;
-        }
-
-        // set server address
-        server_addr.sin_family = AF_INET;
-        server_addr.sin_addr.s_addr = INADDR_ANY;
-        server_addr.sin_port = htons(VN_PORT);
-
-        // bind socket
-        if (bind(server_socket, (sockaddr*)&server_addr, sizeof(server_addr)) == SOCKET_ERROR)
-        {
-            std::cerr << "Socket binding failed. Error: " << WSAGetLastError() << std::endl;
-            closesocket(server_socket);
-            WSACleanup();
-            return 1;
-        }
-
-        // listening
-        if (listen(server_socket, SOMAXCONN) == SOCKET_ERROR)
-        {
-            std::cerr << "Socket listening failed. Error: " << WSAGetLastError() << std::endl;
-            closesocket(server_socket);
-            WSACleanup();
-        }
-
-        std::cout << "Waiting for a client_instance to connect ..." << std::endl;
-
-        // accept connection from client_instance
-        while (true)
-        {
-
-            client_socket = accept(server_socket, (sockaddr*)&client_addr, &client_addr_size);
-            if (client_socket != INVALID_SOCKET)
-            {
-                break;
-            }
-        }
-
-        return 0;
-    }
-
-    int server_instance::init_gui()
+    int vn_client_instance::init_gui()
     {
         IMGUI_CHECKVERSION();
 
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO();
+
+        io.FontGlobalScale = 2.0f;
 
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
@@ -231,53 +162,31 @@ namespace VN
         return 0;
     }
 
-    int server_instance::terminate_socket()
+    void vn_client_instance::render_gui()
     {
-        // close socket
-        closesocket(client_socket);
-        closesocket(server_socket);
-        WSACleanup();
+        ImGui::Begin("Plot preferences");
 
-        return 0;
-    }
-
-    int server_instance::on_message_reviced()
-    {
-        char buffer[1024];
-        int bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
-        if (bytes_received > 0)
+        if (is_connected())
         {
-            seralize_stream ss(buffer, bytes_received);
-
-            int type = -1;
-            ss.read(type);
-            if (type == VN_FLAG_CURVE)
+            if (ImGui::Button("Disconnect"))
             {
-                delete m_crv;
-                m_crv = new VsNurbCurv;
-                ss.read(*m_crv);
-            }
-            if (type == VN_FLAG_SURFACE)
-            {
-                delete m_srf;
-                m_srf = new VsNurbSurf;
-                ss.read(*m_srf);
-            }
-            else if (type == VN_FLAG_DISCONNECT)
-            {
-                //TODO: temporary solution
-                m_need_reconnect = true;
+                vn_log("CONNECTION", "Ready to disconnect.");
+                m_connected_to = false;
             }
         }
         else
         {
-            std::cout << "hanging." << std::endl;
+            if (ImGui::Button("Connect"))
+            {
+                vn_log("CONNECTION", "Ready to connect.");
+                m_connected_to = true;
+            }
         }
 
-        return 0;
+        ImGui::End();
     }
 
-    int server_instance::draw_nurbs_surf()
+    int vn_client_instance::draw_nurbs_surf()
     {
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
@@ -419,7 +328,7 @@ namespace VN
         return 0;
     }
 
-    int server_instance::draw_nurbs_curve(VsNurbCurv* crv)
+    int vn_client_instance::draw_nurbs_curve(VsNurbCurv* crv)
     {
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
@@ -498,6 +407,45 @@ namespace VN
         glPopMatrix();
 
         return 0;
+    }
+
+    void vn_client_instance::handle_message(const char* buffer, int nbytes)
+    {
+        seralize_stream ss(buffer, nbytes);
+
+        int type = -1;
+        ss.read(type);
+
+        std::lock_guard<std::mutex> lkm(m_mutex);
+        switch (type)
+        {
+        case VN_FLAG_CURVE:
+            {
+                vn_log("MESSAGE", "Nurbs curve plot received.");
+                delete m_crv;
+                m_crv = new VsNurbCurv;
+                ss.read(*m_crv);
+
+                ::VN::yaml_serializer::dump("test.yaml", *m_crv);
+                ::VN::VsNurbCurv crv2;
+                ::VN::yaml_serializer::load("test.yaml", crv2);
+
+                break;
+            }
+        case VN_FLAG_SURFACE:
+            {
+                vn_log("MESSAGE", "Nurbs surface plot received.");
+                delete m_srf;
+                m_srf = new VsNurbSurf;
+                ss.read(*m_srf);
+                break;
+            }
+        default:
+            {
+                // shouldn't, check it
+                __debugbreak();
+            }
+        }
     }
 
 }

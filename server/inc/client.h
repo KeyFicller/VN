@@ -12,6 +12,8 @@
 #include <chrono>
 #include <WinSock2.h>
 
+#include "connections.h"
+
 #pragma comment(lib, "ws2_32.lib")
 
 namespace VN
@@ -19,16 +21,16 @@ namespace VN
     class VsNurbSurf;
     class VsNurbCurv;
 
-    class server_instance
+    class vn_client_instance : public client_instance
     {
     public:
-        static server_instance& instance()
+        static vn_client_instance& instance()
         {
-            static server_instance s_instance;
+            static vn_client_instance s_instance;
             return s_instance;
         }
 
-        ~server_instance();
+        ~vn_client_instance() override;
 
         void init();
 
@@ -37,28 +39,22 @@ namespace VN
     private:
         int init_plot_window_and_camera();
         int init_nurb_renderer();
-        int init_socket();
         int init_gui();
 
-        int terminate_socket();
-
-        int on_message_reviced();
+        void render_gui();
 
         int draw_nurbs_surf();
         int draw_nurbs_curve(VsNurbCurv* crv);
+
+        void handle_message(const char* buffer, int nbytes) override;
 
     private:
         GLFWwindow* m_window = nullptr;
         GLUnurbsObj* m_nurbs = nullptr;
         camera* m_cam = nullptr;
 
-        WSADATA wsa_data;
-        SOCKET server_socket, client_socket;
-        sockaddr_in server_addr, client_addr;
-
+        // TODO: warp with a mutex.
         VsNurbSurf* m_srf = nullptr;
         VsNurbCurv* m_crv = nullptr;
-
-        bool m_need_reconnect = false;
     };
 }

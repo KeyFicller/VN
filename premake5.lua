@@ -8,7 +8,7 @@ envir_server_directory = envir_work_space_directory .. "/server"
 envir_third_party_directory = envir_work_space_directory .. "/third"
 
 workspace "VisualNurb"
-	startproject "server"
+	startproject "client"
 	configurations {
 		"Debug",
 		"Release"

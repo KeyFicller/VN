@@ -1,8 +1,8 @@
-#include "server.h"
+#include "client.h"
 
 int main()
 {
-    ::VN::server_instance::instance().init();
+    ::VN::vn_client_instance::instance().init();
 
-    ::VN::server_instance::instance().exec();
+    ::VN::vn_client_instance::instance().exec();
 }

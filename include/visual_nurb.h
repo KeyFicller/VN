@@ -1,26 +1,17 @@
 #pragma once
 
+#include "connections.h"
 #include "serializer.h"
 
 #include <iostream>
 #include <winsock2.h>
 #include <WS2tcpip.h>
-/*
- * @brief Port for socket
- */
-#define VN_PORT    54000
-
-#define VN_FLAG_CURVE            ((int)0)
-#define VN_FLAG_SURFACE          ((int)1)
-
-#define VN_FLAG_DISCONNECT       ((int)6)
 
 /*
- * @breif Macro
+ * @brief Macro
  */
 #define VN_PLOT_CURVE(PTR, ...)      ::VN::client_instance::instance().plot_nurb_curve(PTR, ::VN::plot_options{##__VA_ARGS__})
 #define VN_PLOT_SURFACE(PTR, ...)    ::VN::client_instance::instance().plot_nurb_surface(PTR, ::VN::plot_options{##__VA_ARGS__})
-
 
 /**
  * Overall:
@@ -42,9 +33,7 @@ namespace VN
         int degree;
         int num_kt;
         VsLim1 bnd;
-        double* knots = nullptr;
-
-        ~VsParmDat() { delete[] knots; }
+        std::vector<double> knots;
     };
 
     struct VsLim3
@@ -61,9 +50,7 @@ namespace VN
         int plane;
         int num_cp;
         VsLim3 box;
-        double* list = nullptr;
-
-        ~VsCtrlPointData() { delete[] list; }
+        std::vector<double> list;
     };
 
     struct VsNurbCurv
@@ -81,9 +68,7 @@ namespace VN
         int num_cv;
         int next;
         int in;
-        VsNurbCurv* list_cv = nullptr;
-
-        ~VsProfile() { delete[] list_cv; }
+        std::vector<VsNurbCurv> list_cv;
     };
 
     struct VsNurbSurf
@@ -98,9 +83,7 @@ namespace VN
         VsCtrlPointData cp;
 
         int num_loop;
-        VsProfile* list_loop = nullptr;
-
-        ~VsNurbSurf() { delete[] list_loop; }
+        std::vector<VsProfile> list_loop;
     };
 
 #else
@@ -131,9 +114,13 @@ namespace VN
         read(value.num_kt);
         read(value.bnd);
 
+#ifndef VN_PROJECT
         if (value.knots)
             delete[] value.knots;
         value.knots = new double[value.num_kt];
+#else
+        value.knots.resize(value.num_kt);
+#endif
 
         for (int i = 0; i < value.num_kt; i++)
         {
@@ -165,9 +152,13 @@ namespace VN
         read(value.num_cp);
         read(value.box);
 
+#ifndef VN_PROJECT
         if (value.list)
             delete[] value.list;
         value.list = new double[value.dim * value.num_cp];
+#else
+        value.list.resize(value.dim * value.num_cp);
+#endif
 
         for (int i = 0; i < value.dim * value.num_cp; i++)
         {
@@ -213,10 +204,13 @@ namespace VN
         read(value.next);
         read(value.in);
 
+#ifndef VN_PROJECT
         if (value.list_cv)
             delete[] value.list_cv;
         value.list_cv = new VsNurbCurv[value.num_cv];
-
+#else
+        value.list_cv.resize(value.num_cv);
+#endif
         for (int i = 0; i < value.num_cv; i++)
         {
             read(value.list_cv[i]);
@@ -253,9 +247,14 @@ namespace VN
         read(value.cp);
         read(value.num_loop);
 
+#ifndef VN_PROJECT
         if (value.list_loop)
             delete[] value.list_loop;
         value.list_loop = new VsProfile[value.num_loop];
+#else
+        value.list_loop.resize(value.num_loop);
+#endif
+
 
         for (int i = 0; i < value.num_loop; i++)
         {
@@ -268,77 +267,16 @@ namespace VN
         unsigned int color = 0xFFFFFF;
     };
 
-    class client_instance
+    class vn_server_instance : public server_instance
     {
     public:
-        static client_instance& instance()
+        static vn_server_instance& instance()
         {
-            static client_instance instance;
-            return instance;
-        }
-
-    protected:
-        client_instance()
-        {
-            const char* server_ip = "127.0.0.1"; // local_server
-
-            // initialize win sock
-            if (WSAStartup(MAKEWORD(2, 2), &m_wsa_data) != 0)
-            {
-                std::cerr << "WSAStartup failed. Error: " << WSAGetLastError() << std::endl;
-                return;
-            }
-
-            // create socket
-            m_client_socket = socket(AF_INET, SOCK_STREAM, 0);
-            if (m_client_socket == INVALID_SOCKET)
-            {
-                std::cerr << "Socket creation failed. Error: " << WSAGetLastError() << std::endl;
-                WSACleanup();
-                return;
-            }
-
-            //// set unlock
-            //static unsigned long mode = 1;
-            //if (ioctlsocket(m_client_socket, FIONBIO, &mode) != 0)
-            //{
-            //    closesocket(m_client_socket);
-            //    return;
-            //}
-
-            // set server address
-            m_server_addr.sin_family = AF_INET;
-            m_server_addr.sin_port = htons(VN_PORT);
-            inet_pton(AF_INET, server_ip, &m_server_addr.sin_addr);
-
-            // bind socket
-            if (connect(m_client_socket, (sockaddr*)&m_server_addr, sizeof(m_server_addr)) == SOCKET_ERROR)
-            {
-                std::cerr << "Connection failed. Error: " << WSAGetLastError() << std::endl;
-                closesocket(m_client_socket);
-                WSACleanup();
-                return;
-            }
-        }
-
-        ~client_instance()
-        {
-            seralize_stream ss;
-            ss.write(VN_FLAG_DISCONNECT);
-            send(m_client_socket, ss.data().data(), ss.data().size(), 0);
-
-            closesocket(m_client_socket);
-            WSACleanup();
+            static vn_server_instance s_instance;
+            return s_instance;
         }
 
     public:
-        void seed()
-        {
-            const char* message = "Hello from Client!";
-            send(m_client_socket, message, strlen(message), 0);
-            std::cout << "Message sent: " << message << std::endl;
-        }
-
         void plot_nurb_curve(void* ptr, const plot_options& opt)
         {
             VsNurbCurv* p_nurb_crv = reinterpret_cast<VsNurbCurv*>(ptr);
@@ -351,7 +289,9 @@ namespace VN
             ss.write(VN_FLAG_CURVE);
             ss.write(*p_nurb_crv);
 
-            send(m_client_socket, ss.data().data(), ss.data().size(), 0);
+            send(m_target_socket, ss.data().data(), ss.data().size(), 0);
+
+            vn_log("MESSAGE", "Nurbs curve plot requested.");
         }
 
         void plot_nurb_surface(void* ptr, const plot_options& opt)
@@ -366,7 +306,9 @@ namespace VN
             ss.write(VN_FLAG_SURFACE);
             ss.write(*p_nurb_srf);
 
-            send(m_client_socket, ss.data().data(), ss.data().size(), 0);
+            send(m_target_socket, ss.data().data(), ss.data().size(), 0);
+
+            vn_log("MESSAGE", "Nurbs surface plot requested.");
         }
 
         static void plot_nurb_curve_debugging()
@@ -409,7 +351,5 @@ namespace VN
 
     private:
         WSADATA m_wsa_data;
-        SOCKET m_client_socket;
-        sockaddr_in m_server_addr;
     };
 }

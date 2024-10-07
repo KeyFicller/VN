@@ -10,6 +10,9 @@
 
 namespace VN
 {
+    class VsNurbCurv;
+    class VsNurbSurf;
+
     class seralize_stream
     {
     public:
@@ -18,7 +21,7 @@ namespace VN
             m_data.resize(10);
         }
 
-        seralize_stream(char* data, int bytes)
+        seralize_stream(const char* data, int bytes)
             : m_index(0), m_last_index(bytes)
         {
             m_data.resize(bytes);
@@ -89,4 +92,17 @@ namespace VN
         size_t m_index = 0;
         size_t m_last_index = 0;
     };
+
+#ifdef VN_PROJECT
+
+    class yaml_serializer
+    {
+    public:
+        static void dump(const std::string& file_path, const VsNurbCurv& crv);
+        static void load(const std::string& file_path, VsNurbCurv& crv);
+        static void dump(const std::string& file_path, const VsNurbSurf& srf);
+        static void load(const std::string& file_path, VsNurbSurf& srf);
+    };
+#endif
+
 }
