@@ -5,6 +5,8 @@
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 
+#include <opennurbs_public.h>
+
 namespace VN
 {
     namespace
@@ -37,7 +39,7 @@ namespace VN
         delete m_srf;
 
         gluDeleteNurbsRenderer(m_nurbs);
-        delete m_cam;
+        delete m_window_user_data.m_cam;
         glfwTerminate();
 
     }
@@ -56,13 +58,9 @@ namespace VN
         /* Loop until the user closes the window */
         while (!glfwWindowShouldClose(m_window))
         {
-            glClear(GL_COLOR_BUFFER_BIT);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            ImGui_ImplOpenGL3_NewFrame();
-            ImGui_ImplGlfw_NewFrame();
-            ImGui::NewFrame();
-
-            m_cam->on_update(delta_time());
+            m_window_user_data.m_cam->on_update(delta_time());
 
             // VN::nurb_surface_shader::instance().bind();
             // draw_nurbs_example();
@@ -72,17 +70,18 @@ namespace VN
                 if (m_srf)
                     draw_nurbs_surf();
 
-                if (m_crv)
+                //if (m_crv)
                     draw_nurbs_curve(m_crv);
             }
 
-            // ImGui::ShowDemoWindow(nullptr);
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
 
             render_gui();
 
             ImGuiIO& io = ImGui::GetIO();
-            
-            io.DisplaySize = ImVec2(1000, 800);
+            io.DisplaySize = ImVec2((float)m_window_user_data.m_width, (float)m_window_user_data.m_height);
 
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -118,18 +117,20 @@ namespace VN
         }
 
         /* Initial camera controller */
-        m_cam = new camera(m_window, 45.f, 1.5f, 0.1f, 1000.f);
+        m_window_user_data.m_cam = new camera(m_window, 45.f, 1.5f, 0.1f, 1000.f);
 
-        glfwSetWindowUserPointer(m_window, m_cam);
+        glfwSetWindowUserPointer(m_window, &m_window_user_data);
 
         // add event callbacks
         glfwSetScrollCallback(m_window, [](GLFWwindow* window, double xOffset, double yOffset) {
             ::VN::mouse_scrolled_event event(static_cast<float>(xOffset), static_cast<float>(yOffset));
-            ((::VN::camera*)glfwGetWindowUserPointer(window))->on_event(event);
+            ((window_user_data*)glfwGetWindowUserPointer(window))->m_cam->on_event(event);
         });
 
         glfwSetWindowSizeCallback(m_window, [](GLFWwindow* window, int width, int height) {
             glViewport(0, 0, width, height);
+            ((window_user_data*)glfwGetWindowUserPointer(window))->m_width = width;
+            ((window_user_data*)glfwGetWindowUserPointer(window))->m_height = height;
         });
 
         return 0;
@@ -157,13 +158,53 @@ namespace VN
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
         ImGui_ImplGlfw_InitForOpenGL(m_window, true);
-        ImGui_ImplOpenGL3_Init("#version 410");
+        ImGui_ImplOpenGL3_Init("#version 330");
 
         return 0;
     }
 
     void vn_client_instance::render_gui()
     {
+        static bool dock_enabled = true;
+
+        static ImGuiDockNodeFlags dock_flags = ImGuiDockNodeFlags_None;
+        ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+
+        if (true) {
+            ImGuiViewport* gui_viewport = ImGui::GetMainViewport();
+            ImGui::SetNextWindowPos(gui_viewport->Pos);
+            ImGui::SetNextWindowSize(gui_viewport->Size);
+            ImGui::SetNextWindowViewport(gui_viewport->ID);
+
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.f);
+            window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+            window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+        }
+
+        if (dock_flags & ImGuiDockNodeFlags_PassthruCentralNode) {
+            window_flags |= ImGuiWindowFlags_NoBackground;
+        }
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+        ImGui::Begin("main dock space", &dock_enabled, window_flags);
+        ImGui::PopStyleVar();
+
+        if (true) {
+            ImGui::PopStyleVar();
+        }
+
+        ImGuiIO& io = ImGui::GetIO();
+        ImGuiStyle& style = ImGui::GetStyle();
+        float min_window_size = style.WindowMinSize.x;
+        style.WindowMinSize.x = 400.f;
+        if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable) {
+            ImGuiID dock_id = ImGui::GetID("main dock space");
+            ImGui::DockSpace(dock_id, ImVec2(0.f, 0.f), dock_flags);
+        }
+
+        style.WindowMinSize.x = min_window_size;
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
+
         ImGui::Begin("Plot preferences");
 
         if (is_connected())
@@ -184,10 +225,15 @@ namespace VN
         }
 
         ImGui::End();
+
+        ImGui::PopStyleVar();
+        ImGui::End();
     }
 
     int vn_client_instance::draw_nurbs_surf()
     {
+        auto m_cam = m_window_user_data.m_cam;
+
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
         gluPerspective(m_cam->m_vertical_fov, m_cam->m_aspect_ratio, m_cam->m_near_clip, m_cam->m_far_clip);
@@ -328,8 +374,18 @@ namespace VN
         return 0;
     }
 
+    void checkOpenGLError(const char* function) {
+        GLenum error = glGetError();
+        while (error != GL_NO_ERROR) {
+            std::cerr << "OpenGL Error in " << function << ": " << error << std::endl;
+            error = glGetError();
+        }
+    }
+
     int vn_client_instance::draw_nurbs_curve(VsNurbCurv* crv)
     {
+        auto m_cam = m_window_user_data.m_cam;
+
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
         gluPerspective(m_cam->m_vertical_fov, m_cam->m_aspect_ratio, m_cam->m_near_clip, m_cam->m_far_clip);
@@ -339,72 +395,79 @@ namespace VN
         gluLookAt(m_cam->eye().x(), m_cam->eye().y(), m_cam->eye().z(), m_cam->look_at().x(), m_cam->look_at().y(), m_cam->look_at().z(),
             m_cam->up_direction().x(), m_cam->up_direction().y(), m_cam->up_direction().z());
 
-        std::vector<float> ctrl_points;
-        std::vector<float> knots;
-        int knot_num = 0;
-        int stride = 0;
-        int order = 0;
+        GLUquadric* quadric = gluNewQuadric(); // 创建一个新的二次曲面对象
+        gluSphere(quadric, 100, 50, 50); // 绘制球体，半径为1.0，50个纬线和50个经线
 
-        knot_num = crv->t.num_kt;
-        for (int i = 0; i < crv->t.num_kt; i++)
-            knots.emplace_back(crv->t.knots[i]);
+        gluDeleteQuadric(quadric); // 删除二次曲面对象
 
-        order = crv->t.degree + 1;
-        stride = 3;
+        checkOpenGLError("draw_nurbs_curve");
 
-        switch (crv->cp.dim)
-        {
-        case 2:
-            {
-            for (int i = 0; i < crv->cp.num_cp; i++)
-            {
-                for (int j = 0; j < 2; j++)
-                    ctrl_points.emplace_back(crv->cp.list[i * 2 + j]);
-                ctrl_points.emplace_back(0.0);
-            }
-            break;
-            }
-        case 3:
-        {
-            for (int i = 0; i < crv->cp.num_cp; i++)
-            {
-                for (int j = 0; j < 3; j++)
-                    ctrl_points.emplace_back(crv->cp.list[i * 3 + j]);
-            }
-            break;
-        }
-        case 4:
-        {
-            for (int i = 0; i < crv->cp.num_cp; i++)
-            {
-                for (int j = 0; j < 3; j++)
-                    ctrl_points.emplace_back(crv->cp.list[i * 4 + j] * crv->cp.list[i * 4 + 3]);
-            }
-            break;
-        }
-        }
+        //std::vector<float> ctrl_points;
+        //std::vector<float> knots;
+        //int knot_num = 0;
+        //int stride = 0;
+        //int order = 0;
 
-        glPushMatrix();
-        //绘制控制点与控制线
-        glScaled(0.2, 0.2, 0.2);
+        //knot_num = crv->t.num_kt;
+        //for (int i = 0; i < crv->t.num_kt; i++)
+        //    knots.emplace_back(crv->t.knots[i]);
 
-        glLineWidth(1.5f);
-        glColor3f(1.0, 0.0, 0.0);
+        //order = crv->t.degree + 1;
+        //stride = 3;
 
-        gluNurbsProperty(m_nurbs, GLU_SAMPLING_TOLERANCE, 5); //设置属性
-        gluNurbsProperty(m_nurbs, GLU_DISPLAY_MODE, GLU_OUTLINE_POLYGON);
-        gluBeginCurve(m_nurbs);//开始绘制
-        gluNurbsCurve(m_nurbs,
-            knot_num,
-            knots.data(),
-            stride,
-            ctrl_points.data(),
-            order,
-            GL_MAP1_VERTEX_3);
+        //switch (crv->cp.dim)
+        //{
+        //case 2:
+        //    {
+        //    for (int i = 0; i < crv->cp.num_cp; i++)
+        //    {
+        //        for (int j = 0; j < 2; j++)
+        //            ctrl_points.emplace_back(crv->cp.list[i * 2 + j]);
+        //        ctrl_points.emplace_back(0.0);
+        //    }
+        //    break;
+        //    }
+        //case 3:
+        //{
+        //    for (int i = 0; i < crv->cp.num_cp; i++)
+        //    {
+        //        for (int j = 0; j < 3; j++)
+        //            ctrl_points.emplace_back(crv->cp.list[i * 3 + j]);
+        //    }
+        //    break;
+        //}
+        //case 4:
+        //{
+        //    for (int i = 0; i < crv->cp.num_cp; i++)
+        //    {
+        //        for (int j = 0; j < 3; j++)
+        //            ctrl_points.emplace_back(crv->cp.list[i * 4 + j] * crv->cp.list[i * 4 + 3]);
+        //    }
+        //    break;
+        //}
+        //}
 
-        gluEndCurve(m_nurbs); //结束绘制
+        //glPushMatrix();
+        ////绘制控制点与控制线
+        //glScaled(0.2, 0.2, 0.2);
 
-        glPopMatrix();
+        //glLineWidth(1.5f);
+        //glColor3f(1.0, 0.0, 0.0);
+
+        //gluNurbsProperty(m_nurbs, GLU_SAMPLING_TOLERANCE, 5); //设置属性
+        //gluNurbsProperty(m_nurbs, GLU_DISPLAY_MODE, GLU_OUTLINE_POLYGON);
+        //gluBeginCurve(m_nurbs);//开始绘制
+        //gluNurbsCurve(m_nurbs,
+        //    knot_num,
+        //    knots.data(),
+        //    stride,
+        //    ctrl_points.data(),
+        //    order,
+        //    GL_MAP1_VERTEX_3);
+
+        //gluEndCurve(m_nurbs); //结束绘制
+
+        //glPopMatrix();
 
         return 0;
     }

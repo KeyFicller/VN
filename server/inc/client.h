@@ -51,10 +51,16 @@ namespace VN
     private:
         GLFWwindow* m_window = nullptr;
         GLUnurbsObj* m_nurbs = nullptr;
-        camera* m_cam = nullptr;
 
         // TODO: warp with a mutex.
         VsNurbSurf* m_srf = nullptr;
         VsNurbCurv* m_crv = nullptr;
+
+        struct window_user_data
+        {
+            camera* m_cam = nullptr;
+            unsigned int m_width = 640;
+            unsigned int m_height = 480;
+        } m_window_user_data;
     };
 }
