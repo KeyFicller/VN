@@ -12,6 +12,7 @@ project "client"
     defines {
         "VN_PROJECT",
         "USE_GLM_IN_MODULE",
+        "USE_IMGUI_IN_MODULE",
         "YAML_CPP_STATIC_DEFINE",
         "OPENNURBS_PUBLIC_INSTALL_DIR=" .. open_nurbs_path_absolute
     }

@@ -3,6 +3,7 @@
 #include "camera.h"
 #include "shader.h"
 #include "mesher.h"
+#include "frame.h"
 #include "vector_matrix.h"
 
 #include "GLFW/glfw3.h"
@@ -41,7 +42,11 @@ namespace VN
         int init_nurb_renderer();
         int init_gui();
 
+        void render_begin();
+        void render_end();
+
         void render_gui();
+        void render_nurbs();
 
         int draw_nurbs_surf();
         int draw_nurbs_curve(VsNurbCurv* crv);
@@ -55,6 +60,8 @@ namespace VN
         // TODO: warp with a mutex.
         VsNurbSurf* m_srf = nullptr;
         VsNurbCurv* m_crv = nullptr;
+
+        std::unique_ptr<frame_buffer> m_frame_buffer;
 
         struct window_user_data
         {

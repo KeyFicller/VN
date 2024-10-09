@@ -60,31 +60,17 @@ namespace VN
         {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+            /* Update camera matrix */
             m_window_user_data.m_cam->on_update(delta_time());
 
-            // VN::nurb_surface_shader::instance().bind();
-            // draw_nurbs_example();
-            {
-                std::lock_guard<std::mutex> lkm(m_mutex);
+            /* ------------- render jobs begin -------------------- */
+            render_begin();
 
-                if (m_srf)
-                    draw_nurbs_surf();
+            render_nurbs();
+            //render_gui();
 
-                //if (m_crv)
-                    draw_nurbs_curve(m_crv);
-            }
-
-            ImGui_ImplOpenGL3_NewFrame();
-            ImGui_ImplGlfw_NewFrame();
-            ImGui::NewFrame();
-
-            render_gui();
-
-            ImGuiIO& io = ImGui::GetIO();
-            io.DisplaySize = ImVec2((float)m_window_user_data.m_width, (float)m_window_user_data.m_height);
-
-            ImGui::Render();
-            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+            render_end();
+            /* ------------- render jobs end ---------------------- */
 
             /* Swap front and back buffers */
             glfwSwapBuffers(m_window);
@@ -138,6 +124,17 @@ namespace VN
 
     int vn_client_instance::init_nurb_renderer()
     {
+        frame_buffer_specification spec;
+        spec.width = 1000;
+        spec.height = 800;
+        spec.attachments = {
+            frame_buffer_texture_format::kRGBA8,
+            //frame_buffer_texture_format::kRedInteger,
+            //frame_buffer_texture_format::kDepth
+        };
+
+        m_frame_buffer = std::make_unique<frame_buffer>(spec);
+
         m_nurbs = gluNewNurbsRenderer();
         gluNurbsProperty(m_nurbs, GLU_SAMPLING_TOLERANCE, 25.0);
         gluNurbsProperty(m_nurbs, GLU_DISPLAY_MODE, GLU_FILL);
@@ -163,8 +160,12 @@ namespace VN
         return 0;
     }
 
-    void vn_client_instance::render_gui()
+    void vn_client_instance::render_begin()
     {
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
         static bool dock_enabled = true;
 
         static ImGuiDockNodeFlags dock_flags = ImGuiDockNodeFlags_None;
@@ -204,7 +205,22 @@ namespace VN
 
         style.WindowMinSize.x = min_window_size;
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
+    }
 
+    void vn_client_instance::render_end()
+    {
+        ImGui::PopStyleVar();
+        ImGui::End();
+
+        ImGuiIO& io = ImGui::GetIO();
+        io.DisplaySize = ImVec2((float)m_window_user_data.m_width, (float)m_window_user_data.m_height);
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    }
+
+    void vn_client_instance::render_gui()
+    {
         ImGui::Begin("Plot preferences");
 
         if (is_connected())
@@ -225,8 +241,47 @@ namespace VN
         }
 
         ImGui::End();
+    }
 
-        ImGui::PopStyleVar();
+    void vn_client_instance::render_nurbs()
+    {
+        ImGui::Begin("Plot Nurbs");
+
+        ImVec2 viewport_min_region = ImGui::GetWindowContentRegionMin();
+        ImVec2 viewport_max_region = ImGui::GetWindowContentRegionMax();
+        ImVec2 viewport_offset = ImGui::GetWindowPos();
+
+        double width = viewport_max_region.x - viewport_min_region.x;
+        double height = viewport_max_region.y - viewport_min_region.y;
+        if (width > 0 && height > 0)
+        {
+            m_frame_buffer->on_resize(width, height);
+        }
+        else
+        {
+            ImGui::End();
+            return;
+        }
+
+        m_frame_buffer->bind();
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        m_frame_buffer->clear_attachment(1, 0);
+
+        {
+            std::lock_guard<std::mutex> lkm(m_mutex);
+
+            if (m_srf)
+                draw_nurbs_surf();
+
+            //if (m_crv)
+            draw_nurbs_curve(m_crv);
+        }
+
+        m_frame_buffer->unbind();
+
+        ImGui::Image(reinterpret_cast<void*>(m_frame_buffer->color_attachment_renderer_id(0))
+            , ImVec2(m_frame_buffer->specification().width, m_frame_buffer->specification().height));
+
         ImGui::End();
     }
 
@@ -374,7 +429,7 @@ namespace VN
         return 0;
     }
 
-    void checkOpenGLError(const char* function) {
+    void check_open_gl_error(const char* function) {
         GLenum error = glGetError();
         while (error != GL_NO_ERROR) {
             std::cerr << "OpenGL Error in " << function << ": " << error << std::endl;
@@ -386,88 +441,21 @@ namespace VN
     {
         auto m_cam = m_window_user_data.m_cam;
 
-        glMatrixMode(GL_PROJECTION);
-        glLoadIdentity();
-        gluPerspective(m_cam->m_vertical_fov, m_cam->m_aspect_ratio, m_cam->m_near_clip, m_cam->m_far_clip);
+        //glMatrixMode(GL_PROJECTION);
+        //glLoadIdentity();
+        //gluPerspective(m_cam->m_vertical_fov, m_cam->m_aspect_ratio, m_cam->m_near_clip, m_cam->m_far_clip);
 
-        glMatrixMode(GL_MODELVIEW);
-        glLoadIdentity();
-        gluLookAt(m_cam->eye().x(), m_cam->eye().y(), m_cam->eye().z(), m_cam->look_at().x(), m_cam->look_at().y(), m_cam->look_at().z(),
-            m_cam->up_direction().x(), m_cam->up_direction().y(), m_cam->up_direction().z());
+        //glMatrixMode(GL_MODELVIEW);
+        //glLoadIdentity();
+        //gluLookAt(m_cam->eye().x(), m_cam->eye().y(), m_cam->eye().z(), m_cam->look_at().x(), m_cam->look_at().y(), m_cam->look_at().z(),
+        //    m_cam->up_direction().x(), m_cam->up_direction().y(), m_cam->up_direction().z());
 
         GLUquadric* quadric = gluNewQuadric(); // 创建一个新的二次曲面对象
-        gluSphere(quadric, 100, 50, 50); // 绘制球体，半径为1.0，50个纬线和50个经线
+        gluSphere(quadric, 0.5, 50, 50); // 绘制球体，半径为1.0，50个纬线和50个经线
 
         gluDeleteQuadric(quadric); // 删除二次曲面对象
 
-        checkOpenGLError("draw_nurbs_curve");
-
-        //std::vector<float> ctrl_points;
-        //std::vector<float> knots;
-        //int knot_num = 0;
-        //int stride = 0;
-        //int order = 0;
-
-        //knot_num = crv->t.num_kt;
-        //for (int i = 0; i < crv->t.num_kt; i++)
-        //    knots.emplace_back(crv->t.knots[i]);
-
-        //order = crv->t.degree + 1;
-        //stride = 3;
-
-        //switch (crv->cp.dim)
-        //{
-        //case 2:
-        //    {
-        //    for (int i = 0; i < crv->cp.num_cp; i++)
-        //    {
-        //        for (int j = 0; j < 2; j++)
-        //            ctrl_points.emplace_back(crv->cp.list[i * 2 + j]);
-        //        ctrl_points.emplace_back(0.0);
-        //    }
-        //    break;
-        //    }
-        //case 3:
-        //{
-        //    for (int i = 0; i < crv->cp.num_cp; i++)
-        //    {
-        //        for (int j = 0; j < 3; j++)
-        //            ctrl_points.emplace_back(crv->cp.list[i * 3 + j]);
-        //    }
-        //    break;
-        //}
-        //case 4:
-        //{
-        //    for (int i = 0; i < crv->cp.num_cp; i++)
-        //    {
-        //        for (int j = 0; j < 3; j++)
-        //            ctrl_points.emplace_back(crv->cp.list[i * 4 + j] * crv->cp.list[i * 4 + 3]);
-        //    }
-        //    break;
-        //}
-        //}
-
-        //glPushMatrix();
-        ////绘制控制点与控制线
-        //glScaled(0.2, 0.2, 0.2);
-
-        //glLineWidth(1.5f);
-        //glColor3f(1.0, 0.0, 0.0);
-
-        //gluNurbsProperty(m_nurbs, GLU_SAMPLING_TOLERANCE, 5); //设置属性
-        //gluNurbsProperty(m_nurbs, GLU_DISPLAY_MODE, GLU_OUTLINE_POLYGON);
-        //gluBeginCurve(m_nurbs);//开始绘制
-        //gluNurbsCurve(m_nurbs,
-        //    knot_num,
-        //    knots.data(),
-        //    stride,
-        //    ctrl_points.data(),
-        //    order,
-        //    GL_MAP1_VERTEX_3);
-
-        //gluEndCurve(m_nurbs); //结束绘制
-
-        //glPopMatrix();
+        check_open_gl_error("draw_nurbs_curve");
 
         return 0;
     }

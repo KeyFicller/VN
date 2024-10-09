@@ -44,10 +44,10 @@ namespace VN
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + index, target_texture(multi_sampled), id, 0);
         }
 
-        void attachDepthTexture(unsigned int id, const frame_buffer_specification& spec, GLenum format, GLenum attachmentType)
+        void attach_depth_texture(unsigned int id, const frame_buffer_specification& spec, GLenum format, GLenum attachment_type)
         {
-            bool multiSampled = spec.samples > 1;
-            if (multiSampled) {
+            bool multi_sampled = spec.samples > 1;
+            if (multi_sampled) {
                 glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, spec.samples, format, spec.width, spec.height, GL_FALSE);
             }
             else {
@@ -58,10 +58,10 @@ namespace VN
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             }
-            glFramebufferTexture2D(GL_FRAMEBUFFER, attachmentType, target_texture(multiSampled), id, 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, attachment_type, target_texture(multi_sampled), id, 0);
         }
 
-        GLenum formatEnumToGLenum(frame_buffer_texture_format format)
+        GLenum format_enum_to_gl_enum(frame_buffer_texture_format format)
         {
             switch (format)
             {
@@ -79,6 +79,7 @@ namespace VN
     }
 
     frame_buffer::frame_buffer(const frame_buffer_specification& spec)
+        : m_specification(spec)
     {
         for (auto& attach : m_specification.attachments) {
             if (is_depth_format(attach)) {
@@ -133,7 +134,7 @@ namespace VN
     void frame_buffer::clear_attachment(unsigned int attachmentId, int value)
     {
         auto& spec = m_color_attachment_specifications[attachmentId];
-        glClearTexImage(m_color_attachments[attachmentId], 0, formatEnumToGLenum(spec), GL_INT, &value);
+        glClearTexImage(m_color_attachments[attachmentId], 0, format_enum_to_gl_enum(spec), GL_INT, &value);
     }
 
 
@@ -174,7 +175,7 @@ namespace VN
             switch (m_depth_attachment_specification)
             {
             case frame_buffer_texture_format::kDepth:
-                attachDepthTexture(m_depth_attachment, m_specification, GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL_ATTACHMENT);
+                attach_depth_texture(m_depth_attachment, m_specification, GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL_ATTACHMENT);
                 break;
             }
         }
@@ -194,5 +195,4 @@ namespace VN
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
-
 }
