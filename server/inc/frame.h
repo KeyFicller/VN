@@ -7,7 +7,7 @@ namespace VN
     enum class frame_buffer_texture_format
     {
         kNone,
-        kRGBA8,
+        kRGB,
         kRedInteger,
         kDepth,
         kDepth24Stencil8 = kDepth

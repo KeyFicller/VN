@@ -28,6 +28,16 @@ namespace VN
 
             return ts;
         }
+
+        void check_open_gl_error(const char* function) {
+            GLenum error = glGetError();
+            while (error != GL_NO_ERROR) {
+                __debugbreak();
+                std::cerr << "OpenGL Error in " << function << ": " << error << std::endl;
+                error = glGetError();
+            }
+        }
+
     }
 
     vn_client_instance::~vn_client_instance()
@@ -64,12 +74,33 @@ namespace VN
             m_window_user_data.m_cam->on_update(delta_time());
 
             /* ------------- render jobs begin -------------------- */
-            render_begin();
 
-            render_nurbs();
+            m_frame_buffer->bind();
+            draw_nurbs_curve(m_crv);
+            m_frame_buffer->unbind();
+
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // 清空屏幕
+
+            glEnable(GL_TEXTURE_2D);
+            glBindTexture(GL_TEXTURE_2D, m_frame_buffer->color_attachment_renderer_id(0));
+
+            // 绘制一个覆盖整个屏幕的四边形
+            glBegin(GL_QUADS);
+            glTexCoord2f(0.0f, 0.0f); glVertex2f(-1.0f, -1.0f); // 左下角
+            glTexCoord2f(1.0f, 0.0f); glVertex2f(1.0f, -1.0f);  // 右下角
+            glTexCoord2f(1.0f, 1.0f); glVertex2f(1.0f, 1.0f);   // 右上角
+            glTexCoord2f(0.0f, 1.0f); glVertex2f(-1.0f, 1.0f);  // 左上角
+            glEnd();
+
+            glDisable(GL_TEXTURE_2D);
+
+            //render_nurbs();
+
+            //render_begin();
+
             //render_gui();
 
-            render_end();
+            //render_end();
             /* ------------- render jobs end ---------------------- */
 
             /* Swap front and back buffers */
@@ -128,9 +159,8 @@ namespace VN
         spec.width = 1000;
         spec.height = 800;
         spec.attachments = {
-            frame_buffer_texture_format::kRGBA8,
-            //frame_buffer_texture_format::kRedInteger,
-            //frame_buffer_texture_format::kDepth
+            frame_buffer_texture_format::kRGB,
+            frame_buffer_texture_format::kDepth
         };
 
         m_frame_buffer = std::make_unique<frame_buffer>(spec);
@@ -241,21 +271,18 @@ namespace VN
         }
 
         ImGui::End();
-    }
 
-    void vn_client_instance::render_nurbs()
-    {
         ImGui::Begin("Plot Nurbs");
 
-        ImVec2 viewport_min_region = ImGui::GetWindowContentRegionMin();
-        ImVec2 viewport_max_region = ImGui::GetWindowContentRegionMax();
-        ImVec2 viewport_offset = ImGui::GetWindowPos();
+        Vec2f viewport_min_region = ImGui::GetWindowContentRegionMin();
+        Vec2f viewport_max_region = ImGui::GetWindowContentRegionMax();
+        Vec2f viewport_offset = ImGui::GetWindowPos();
 
-        double width = viewport_max_region.x - viewport_min_region.x;
-        double height = viewport_max_region.y - viewport_min_region.y;
+        double width = viewport_max_region.x() - viewport_min_region.x();
+        double height = viewport_max_region.y() - viewport_min_region.y();
         if (width > 0 && height > 0)
         {
-            m_frame_buffer->on_resize(width, height);
+            //m_frame_buffer->on_resize(width, height);
         }
         else
         {
@@ -263,9 +290,18 @@ namespace VN
             return;
         }
 
+        ImGui::Image(reinterpret_cast<void*>(m_frame_buffer->color_attachment_renderer_id(0))
+            , Vec2f(m_frame_buffer->specification().width, m_frame_buffer->specification().height), Vec2f(0.0f, 1.0f), Vec2f(1.0f, 0.0f));
+
+        ImGui::End();
+    }
+
+    void vn_client_instance::render_nurbs()
+    {
         m_frame_buffer->bind();
+        glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        m_frame_buffer->clear_attachment(1, 0);
+        //m_frame_buffer->clear_attachment(1, 0);
 
         {
             std::lock_guard<std::mutex> lkm(m_mutex);
@@ -278,11 +314,6 @@ namespace VN
         }
 
         m_frame_buffer->unbind();
-
-        ImGui::Image(reinterpret_cast<void*>(m_frame_buffer->color_attachment_renderer_id(0))
-            , ImVec2(m_frame_buffer->specification().width, m_frame_buffer->specification().height));
-
-        ImGui::End();
     }
 
     int vn_client_instance::draw_nurbs_surf()
@@ -429,33 +460,32 @@ namespace VN
         return 0;
     }
 
-    void check_open_gl_error(const char* function) {
-        GLenum error = glGetError();
-        while (error != GL_NO_ERROR) {
-            std::cerr << "OpenGL Error in " << function << ": " << error << std::endl;
-            error = glGetError();
-        }
-    }
-
     int vn_client_instance::draw_nurbs_curve(VsNurbCurv* crv)
     {
         auto m_cam = m_window_user_data.m_cam;
 
-        //glMatrixMode(GL_PROJECTION);
-        //glLoadIdentity();
-        //gluPerspective(m_cam->m_vertical_fov, m_cam->m_aspect_ratio, m_cam->m_near_clip, m_cam->m_far_clip);
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        gluPerspective(m_cam->m_vertical_fov, m_cam->m_aspect_ratio, m_cam->m_near_clip, m_cam->m_far_clip);
 
-        //glMatrixMode(GL_MODELVIEW);
-        //glLoadIdentity();
-        //gluLookAt(m_cam->eye().x(), m_cam->eye().y(), m_cam->eye().z(), m_cam->look_at().x(), m_cam->look_at().y(), m_cam->look_at().z(),
-        //    m_cam->up_direction().x(), m_cam->up_direction().y(), m_cam->up_direction().z());
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+        gluLookAt(m_cam->eye().x(), m_cam->eye().y(), m_cam->eye().z(), m_cam->look_at().x(), m_cam->look_at().y(), m_cam->look_at().z(),
+            m_cam->up_direction().x(), m_cam->up_direction().y(), m_cam->up_direction().z());
 
         GLUquadric* quadric = gluNewQuadric(); // 创建一个新的二次曲面对象
-        gluSphere(quadric, 0.5, 50, 50); // 绘制球体，半径为1.0，50个纬线和50个经线
+        gluSphere(quadric, 50, 50, 50); // 绘制球体，半径为1.0，50个纬线和50个经线
 
         gluDeleteQuadric(quadric); // 删除二次曲面对象
 
-        check_open_gl_error("draw_nurbs_curve");
+
+        //glBegin(GL_QUADS);
+        //glColor3f(1.0, 0.0, 0.0);
+        //glVertex2f(-0.6, -0.5);
+        //glVertex2f(0.5, -0.5);
+        //glVertex2f(0.5, 0.5);
+        //glVertex2f(-0.5, 0.5);
+        //glEnd();
 
         return 0;
     }

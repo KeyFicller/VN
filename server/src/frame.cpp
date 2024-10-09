@@ -15,7 +15,7 @@ namespace VN
             case frame_buffer_texture_format::kDepth:
                 return true;
             case frame_buffer_texture_format::kNone:
-            case frame_buffer_texture_format::kRGBA8:
+            case frame_buffer_texture_format::kRGB:
             case frame_buffer_texture_format::kRedInteger:
             default:
                 return false;
@@ -67,7 +67,7 @@ namespace VN
             {
             case frame_buffer_texture_format::kNone:
                 return GL_NONE;
-            case frame_buffer_texture_format::kRGBA8:
+            case frame_buffer_texture_format::kRGB:
                 return GL_RGBA8;
             case frame_buffer_texture_format::kRedInteger:
                 return GL_RED_INTEGER;
@@ -159,8 +159,8 @@ namespace VN
                 glBindTexture(target_texture(multiSampled), m_color_attachments[i]);
                 switch (m_color_attachment_specifications[i])
                 {
-                case frame_buffer_texture_format::kRGBA8:
-                    attach_color_texture(m_color_attachments[i], m_specification, GL_RGBA8, GL_RGBA, i);
+                case frame_buffer_texture_format::kRGB:
+                    attach_color_texture(m_color_attachments[i], m_specification, GL_RGB, GL_RGB, i);
                     break;
                 case frame_buffer_texture_format::kRedInteger:
                     attach_color_texture(m_color_attachments[i], m_specification, GL_R32I, GL_RED_INTEGER, i);
@@ -170,14 +170,24 @@ namespace VN
         }
 
         if (m_depth_attachment_specification != frame_buffer_texture_format::kNone) {
-            glCreateTextures(target_texture(multiSampled), 1, &m_depth_attachment);
-            glBindTexture(target_texture(multiSampled), m_depth_attachment);
-            switch (m_depth_attachment_specification)
-            {
-            case frame_buffer_texture_format::kDepth:
-                attach_depth_texture(m_depth_attachment, m_specification, GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL_ATTACHMENT);
-                break;
-            }
+            glGenRenderbuffers(1, &m_depth_attachment);
+            glBindRenderbuffer(GL_RENDERBUFFER, m_depth_attachment);
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, m_specification.width, m_specification.height);
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_depth_attachment);
+
+            //glCreateTextures(target_texture(multiSampled), 1, &m_depth_attachment);
+            //glBindTexture(target_texture(multiSampled), m_depth_attachment);
+            //switch (m_depth_attachment_specification)
+            //{
+            //case frame_buffer_texture_format::kDepth:
+            //    attach_depth_texture(m_depth_attachment, m_specification, GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL_ATTACHMENT);
+            //    break;
+            //}
+        }
+
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        {
+            __debugbreak();
         }
 
         if (m_color_attachments.size() > 0) {
